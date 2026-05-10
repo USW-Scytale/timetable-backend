@@ -10,3 +10,6 @@ build/
 .pytest_cache/
 .mypy_cache/
 *.db
+
+# 수원대 강의 CSV 원본 (대용량, 학기마다 갱신)
+data/*.csv
