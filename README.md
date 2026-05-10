@@ -149,6 +149,43 @@ python3 -m seed.load_suwon_courses --csv data/suwon_2026_1.csv --dry-run
 
 `skipped_unknown_type` 이 0이 아니면 새 교과구분이 등장한 것이니 매핑 추가가 필요합니다.
 
+### 5) 메타데이터 적재 (건물 / 강의실 / 학부 / 학과)
+
+강의 CSV를 적재한 뒤 `load_meta` 스크립트로 부속 메타데이터를 채웁니다.
+
+| CSV 컬럼 | 적재 테이블 | 비고 |
+|---|---|---|
+| `강의실` (예: `종합606`, `미래B102`) | `buildings` + `rooms` | 앞부분=건물 ID, 뒷부분=호실 |
+| `소속학부명` | `colleges` | |
+| `개설학과명` | `departments` | college FK 포함 |
+
+```bash
+# 기본 실행 (강의 적재 후 실행 권장)
+python3 -m seed.load_meta
+
+# --backfill: course_schedules.room_id를 새로 생성된 room_id로 채움
+python3 -m seed.load_meta --backfill
+
+# 다른 CSV 지정
+python3 -m seed.load_meta --csv data/suwon_2026_2.csv --backfill
+
+# DB에 쓰지 않고 통계만
+python3 -m seed.load_meta --dry-run
+```
+
+실행 결과 예시:
+```
+[load_meta] data/suwon_courses.csv (dry_run=False, backfill=True)
+  buildings_inserted    : 12
+  rooms_inserted        : 98
+  colleges_inserted     : 9
+  departments_inserted  : 43
+  schedules_backfilled  : 850
+[done]
+```
+
+`install.sh` / `install.bat` 의 7단계에서 자동으로 실행됩니다.
+
 ---
 
 ## 프로젝트 구조
@@ -166,7 +203,8 @@ timetable-backend/
 │   └── core/                # 인증, 예외처리, 교시 유틸
 ├── alembic/                 # DB 마이그레이션
 ├── seed/
-│   └── load_suwon_courses.py    # 수원대 강의 CSV ETL
+│   ├── load_suwon_courses.py    # 수원대 강의 CSV ETL
+│   └── load_meta.py             # 건물/강의실/학부/학과 메타데이터 적재
 ├── data/                    # 강의 CSV 원본 (gitignore)
 ├── app.py                   # 로컬 실행 진입점
 ├── install.bat              # Windows 설치 스크립트

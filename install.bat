@@ -24,7 +24,7 @@ if errorlevel 1 (
 
 :: 가상환경 생성
 echo.
-echo [1/6] 가상환경 생성 중...
+echo [1/7] 가상환경 생성 중...
 python -m venv venv
 if errorlevel 1 (
     echo [오류] 가상환경 생성 실패
@@ -33,7 +33,7 @@ if errorlevel 1 (
 )
 
 :: 패키지 설치
-echo [2/6] 패키지 설치 중...
+echo [2/7] 패키지 설치 중...
 call venv\Scripts\activate.bat
 python -m pip install --upgrade pip -q
 pip install --prefer-binary -r requirements.txt -q
@@ -44,7 +44,7 @@ if errorlevel 1 (
 )
 
 :: .env 파일 생성
-echo [3/6] 환경 파일 생성 중...
+echo [3/7] 환경 파일 생성 중...
 if not exist .env (
     (
         echo DATABASE_URL=mysql+pymysql://app:app_password@localhost:3306/suwon_timetable
@@ -56,7 +56,7 @@ if not exist .env (
 )
 
 :: MySQL 컨테이너 시작
-echo [4/6] MySQL DB 시작 중...
+echo [4/7] MySQL DB 시작 중...
 docker compose up -d db
 if errorlevel 1 (
     echo [오류] MySQL 컨테이너 시작 실패
@@ -82,7 +82,7 @@ goto wait_loop
 echo MySQL 준비 완료!
 
 :: DB 스키마 적용
-echo [5/6] DB 스키마 적용 중 (alembic upgrade head)...
+echo [5/7] DB 스키마 적용 중 (alembic upgrade head)...
 alembic upgrade head
 if errorlevel 1 (
     echo [오류] DB 스키마 적용 실패
@@ -91,7 +91,7 @@ if errorlevel 1 (
 )
 
 :: 수원대 개설강좌 CSV 적재 (선택)
-echo [6/6] 수원대 개설강좌 CSV 적재 중...
+echo [6/7] 수원대 개설강좌 CSV 적재 중...
 if not defined SUWON_CSV set SUWON_CSV=data\suwon_courses.csv
 if exist "%SUWON_CSV%" (
     python -m seed.load_suwon_courses --csv "%SUWON_CSV%"
@@ -102,6 +102,17 @@ if exist "%SUWON_CSV%" (
     echo [건너뜀] %SUWON_CSV% 가 없습니다.
     echo          수원대 개설강좌 CSV를 받아 위 경로에 두고 아래 명령으로 적재할 수 있습니다:
     echo            python -m seed.load_suwon_courses --csv ^<경로^>
+)
+
+:: 메타데이터 적재 (건물/강의실/학부/학과)
+echo [7/7] 메타데이터 적재 중 (건물/강의실/학부/학과)...
+if exist "%SUWON_CSV%" (
+    python -m seed.load_meta --csv "%SUWON_CSV%" --backfill
+    if errorlevel 1 (
+        echo [경고] 메타데이터 적재 실패 - 계속 진행합니다.
+    )
+) else (
+    echo [건너뜀] %SUWON_CSV% 가 없어 메타데이터 적재를 건너뜁니다.
 )
 
 echo.
