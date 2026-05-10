@@ -71,11 +71,25 @@ done
 echo "MySQL 준비 완료!"
 
 # 초기 데이터 삽입
-echo "[5/5] DB 초기 데이터 삽입 중..."
+echo "[5/6] DB 초기 데이터 삽입 중..."
 python3 -m seed.seed_data
 if [ $? -ne 0 ]; then
     echo "[오류] 초기 데이터 삽입 실패"
     exit 1
+fi
+
+# 수원대 개설강좌 CSV 적재 (선택)
+echo "[6/6] 수원대 개설강좌 CSV 적재 중..."
+SUWON_CSV="${SUWON_CSV:-data/suwon_courses.csv}"
+if [ -f "$SUWON_CSV" ]; then
+    python3 -m seed.load_suwon_courses --csv "$SUWON_CSV"
+    if [ $? -ne 0 ]; then
+        echo "[경고] 수원대 강의 CSV 적재 실패 — 계속 진행합니다."
+    fi
+else
+    echo "[건너뜀] $SUWON_CSV 가 없습니다."
+    echo "         수원대 개설강좌 CSV를 받아 위 경로에 두고 아래 명령으로 적재할 수 있습니다:"
+    echo "           python3 -m seed.load_suwon_courses --csv <경로>"
 fi
 
 echo ""
