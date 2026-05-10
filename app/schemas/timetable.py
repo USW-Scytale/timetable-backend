@@ -6,7 +6,7 @@ from pydantic import BaseModel, Field
 class RecommendRequest(BaseModel):
     start_hour: int = Field(..., ge=8, le=12)
     time_preference: Literal["morning", "afternoon", "any"]
-    free_days: Optional[List[Literal["mon", "tue", "wed", "thu", "fri"]]] = None
+    free_days: Optional[List[Literal["mon", "tue", "wed", "thu", "fri", "sat"]]] = None
     target_credits: Literal[12, 15, 18, 21]
     plan_period: Literal["single", "year"]
     interests: Optional[List[str]] = None
@@ -19,10 +19,13 @@ class CourseScheduleOut(BaseModel):
     end_period: int
     start_time: str
     end_time: str
+    room: Optional[str] = None
 
 
 class CourseOut(BaseModel):
     course_id: str
+    subject_code: Optional[str] = None
+    division: Optional[int] = None
     name: str
     professor: str
     credits: int

@@ -17,10 +17,15 @@ def search_courses(
     type: Optional[str] = None,
     day: Optional[str] = None,
     department: Optional[str] = None,
+    target_grade: Optional[int] = Query(default=None, ge=1, le=4),
+    subject_code: Optional[str] = None,
     page: int = Query(default=1, ge=1),
     size: int = Query(default=20, ge=1, le=50),
     db: Session = Depends(get_db),
     _: User = Depends(get_current_user),
 ):
-    result = course_service.search_courses(db, keyword, type, day, department, page, size)
+    result = course_service.search_courses(
+        db, keyword, type, day, department, page, size,
+        target_grade=target_grade, subject_code=subject_code,
+    )
     return {"success": True, "data": result}

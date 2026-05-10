@@ -1,27 +1,18 @@
 from typing import Optional
 from sqlalchemy.orm import Session
 
+from app.core.category import (
+    course_type_label,
+    grad_category_meta,
+    grad_category_of,
+)
 from app.models.student import Student
 from app.models.course import Course, CourseHistory, Prerequisite
 from app.models.graduation import GraduationRequirement, RequiredCourse
 
-CATEGORY_META = {
-    "major_required":   {"name": "전공필수",  "color": "#3B82F6"},
-    "major_elective":   {"name": "전공선택",  "color": "#7C3AED"},
-    "general_required": {"name": "교양필수",  "color": "#16A34A"},
-    "general_elective": {"name": "교양선택",  "color": "#D97706"},
-    "other":            {"name": "기타·자유", "color": "#EC4899"},
-}
-
-TYPE_LABEL = {
-    "major_required": "전공필수",
-    "major_elective": "전공선택",
-    "general_required": "교양필수",
-    "general_elective": "교양선택",
-}
-
 
 def _done_credits_by_category(student_id: str, db: Session) -> dict:
+    """이수 완료된 강의를 졸업요건 카테고리(grad_category)로 합산."""
     history = (
         db.query(CourseHistory)
         .filter(CourseHistory.student_id == student_id, CourseHistory.status == "done")
@@ -31,7 +22,8 @@ def _done_credits_by_category(student_id: str, db: Session) -> dict:
     for entry in history:
         course = db.query(Course).filter(Course.course_id == entry.course_id).first()
         if course:
-            totals[course.course_type] = totals.get(course.course_type, 0) + course.credits
+            cat = grad_category_of(course.course_type)
+            totals[cat] = totals.get(cat, 0) + course.credits
     return totals
 
 
@@ -61,7 +53,7 @@ def get_graduation_analysis(student: Student, db: Session) -> dict:
     categories = []
     for req in reqs:
         done = done_map.get(req.category, 0)
-        meta = CATEGORY_META.get(req.category, {"name": req.category, "color": "#888888"})
+        meta = grad_category_meta(req.category)
         categories.append({
             "name": meta["name"],
             "done": done,
@@ -121,7 +113,7 @@ def get_checklist(student: Student, db: Session, category: Optional[str] = None)
 
     result = []
     for cat, items in by_category.items():
-        meta = CATEGORY_META.get(cat, {"name": cat, "color": "#888"})
+        meta = grad_category_meta(cat)
         result.append({"category": meta["name"], "color": meta["color"], "items": items})
     return result
 
@@ -142,7 +134,7 @@ def get_graduation_recommendations(student: Student, db: Session) -> list:
                 course = db.query(Course).filter(Course.course_id == item["course_id"]).first()
                 if not course:
                     continue
-                meta = CATEGORY_META.get(course.course_type, {"color": "#888"})
+                meta = grad_category_meta(grad_category_of(course.course_type))
                 schedule_text = _make_schedule_text(course, DAY_KR_SHORT, PERIOD_START_TIME, PERIOD_END_TIME)
                 result.append({
                     "course_id": course.course_id,
@@ -150,32 +142,34 @@ def get_graduation_recommendations(student: Student, db: Session) -> list:
                     "professor": course.professor,
                     "credits": course.credits,
                     "type": course.course_type,
-                    "type_label": TYPE_LABEL.get(course.course_type, course.course_type),
+                    "type_label": course_type_label(course.course_type),
                     "color": meta["color"],
                     "reason": "졸업필수 미이수",
                     "schedule_text": schedule_text,
                 })
 
-    done_elective = sum(
-        db.query(Course).filter(Course.course_id == cid).first().credits
-        for cid, status in history_map.items()
-        if status == "done"
-        and (db.query(Course).filter(Course.course_id == cid).first() or Course(course_type="other")).course_type == "major_elective"
-    )
+    done_elective = 0
+    for cid, status in history_map.items():
+        if status != "done":
+            continue
+        c = db.query(Course).filter(Course.course_id == cid).first()
+        if c and grad_category_of(c.course_type) == "major_elective":
+            done_elective += c.credits
+
     req_elective = _get_required_credits(student, "major_elective", db)
     if done_elective < req_elective:
         elective_candidates = (
             db.query(Course)
             .filter(
                 Course.course_type == "major_elective",
-                Course.department == student.department,
+                Course.belong_dept == student.department,
                 ~Course.course_id.in_(history_map.keys()),
             )
             .limit(3)
             .all()
         )
         for course in elective_candidates:
-            meta = CATEGORY_META["major_elective"]
+            meta = grad_category_meta("major_elective")
             schedule_text = _make_schedule_text(course, DAY_KR_SHORT, PERIOD_START_TIME, PERIOD_END_TIME)
             result.append({
                 "course_id": course.course_id,
@@ -183,7 +177,7 @@ def get_graduation_recommendations(student: Student, db: Session) -> list:
                 "professor": course.professor,
                 "credits": course.credits,
                 "type": course.course_type,
-                "type_label": TYPE_LABEL.get(course.course_type, course.course_type),
+                "type_label": course_type_label(course.course_type),
                 "color": meta["color"],
                 "reason": f"전공선택 {req_elective - done_elective}학점 미달",
                 "schedule_text": schedule_text,
@@ -194,10 +188,10 @@ def get_graduation_recommendations(student: Student, db: Session) -> list:
 
 def get_prerequisites(student: Student, db: Session, scope: Optional[str] = "major") -> dict:
     if scope == "department" or not student.major:
-        dept_filter = Course.department == student.department
+        dept_filter = Course.belong_dept == student.department
         scope_label = student.department
     else:
-        dept_filter = (Course.department == student.department) | (Course.department == student.major)
+        dept_filter = (Course.belong_dept == student.department) | (Course.belong_dept == student.major)
         scope_label = student.major or student.department
 
     courses = db.query(Course).filter(dept_filter).all()

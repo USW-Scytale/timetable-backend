@@ -4,6 +4,12 @@ from typing import Optional
 
 from sqlalchemy.orm import Session
 
+from app.core.category import (
+    ELECTIVE_TYPES,
+    REQUIRED_TYPES,
+    course_type_label,
+    grad_category_of,
+)
 from app.core.period import PERIOD_START_TIME, PERIOD_END_TIME, DAY_KR, DAY_KR_SHORT
 from app.models.course import Course, CourseSchedule, CourseHistory
 from app.models.student import Student
@@ -12,14 +18,9 @@ from app.models.timetable import (
 )
 from app.schemas.timetable import RecommendRequest
 
-TYPE_LABEL = {
-    "major_required": "전공필수",
-    "major_elective": "전공선택",
-    "general_required": "교양필수",
-    "general_elective": "교양선택",
-}
-
 SEMESTER = "2026-1"
+
+WEEKDAYS = ["mon", "tue", "wed", "thu", "fri", "sat"]
 
 
 def _make_rec_id() -> str:
@@ -57,78 +58,111 @@ def _passes_time_preference(schedules, time_preference: str, start_hour: int) ->
     return True
 
 
+def _passes_grade_limit(course: Course, student_grade: int) -> bool:
+    """학년별 제한인원이 명시된 경우, 본인 학년 정원이 0이면 제외."""
+    if not course.grade_limits:
+        return True
+    limit = course.grade_limits.get(str(student_grade))
+    if limit is None:
+        return True
+    return limit > 0
+
+
 def _course_to_dict(course: Course) -> dict:
-    schedule = [
-        {
+    schedule = []
+    for s in course.schedules:
+        room = s.room_name
+        if not room and s.room:
+            room = f"{s.room.building.name} {s.room.name}" if s.room.building else s.room.name
+        schedule.append({
             "day": s.day,
             "start_period": s.start_period,
             "end_period": s.end_period,
-            "start_time": PERIOD_START_TIME[s.start_period],
-            "end_time": PERIOD_END_TIME[s.end_period],
-        }
-        for s in course.schedules
-    ]
-    room = None
-    if course.schedules and course.schedules[0].room:
-        r = course.schedules[0].room
-        room = f"{r.building.name} {r.name}"
+            "start_time": PERIOD_START_TIME.get(s.start_period, ""),
+            "end_time": PERIOD_END_TIME.get(s.end_period, ""),
+            "room": room,
+        })
+
+    primary_room = schedule[0]["room"] if schedule else None
 
     return {
         "course_id": course.course_id,
+        "subject_code": course.subject_code,
+        "division": course.division,
         "name": course.name,
         "professor": course.professor,
         "credits": course.credits,
         "type": course.course_type,
-        "type_label": TYPE_LABEL.get(course.course_type, course.course_type),
+        "type_label": course_type_label(course.course_type),
         "schedule": schedule,
-        "room": room,
+        "room": primary_room,
     }
 
 
+def _group_by_subject(courses: list[Course]) -> dict[str, list[Course]]:
+    """같은 subject_code끼리 그룹핑 (분반 충돌 방지용)."""
+    groups: dict[str, list[Course]] = {}
+    for c in courses:
+        groups.setdefault(c.subject_code, []).append(c)
+    return groups
+
+
 def _build_plan(
-    required: list[Course],
-    elective: list[Course],
+    required_groups: dict[str, list[Course]],
+    elective_groups: dict[str, list[Course]],
     req: RecommendRequest,
+    student_grade: int,
     variation: int,
     plan_idx: int,
 ) -> dict | None:
     free_days = req.free_days or []
 
-    candidates = list(required)
-    shuffled_elective = list(elective)
-    random.seed(variation * 42)
-    random.shuffle(shuffled_elective)
-    candidates += shuffled_elective
+    # 그룹 단위로 후보를 만듦: 같은 과목코드(다른 분반) 중 1개만 선택
+    group_keys = list(required_groups.keys()) + list(elective_groups.keys())
+    rng = random.Random(variation * 42)
+    rng.shuffle(group_keys)
 
     selected: list[Course] = []
+    selected_subjects: set[str] = set()
     occupied: set = set()
     total_credits = 0
 
-    for course in candidates:
+    for key in group_keys:
         if total_credits >= req.target_credits:
             break
-        if not course.schedules:
+        if key in selected_subjects:
             continue
-        course_slots = _get_slots(course.schedules)
-        if _has_conflict(occupied, course_slots):
-            continue
-        if _violates_free_days(course_slots, free_days):
-            continue
-        if not _passes_time_preference(course.schedules, req.time_preference, req.start_hour):
-            continue
-        selected.append(course)
-        occupied.update(course_slots)
-        total_credits += course.credits
+
+        candidates = required_groups.get(key) or elective_groups.get(key) or []
+        # 분반 후보들을 셔플하여 다양성 확보
+        shuffled = list(candidates)
+        rng.shuffle(shuffled)
+
+        for course in shuffled:
+            if not course.schedules:
+                continue
+            if not _passes_grade_limit(course, student_grade):
+                continue
+            course_slots = _get_slots(course.schedules)
+            if _has_conflict(occupied, course_slots):
+                continue
+            if _violates_free_days(course_slots, free_days):
+                continue
+            if not _passes_time_preference(course.schedules, req.time_preference, req.start_hour):
+                continue
+            selected.append(course)
+            selected_subjects.add(course.subject_code)
+            occupied.update(course_slots)
+            total_credits += course.credits
+            break
 
     if total_credits < req.target_credits - 4:
         return None
 
-    actual_free_days = sorted(
-        set(["mon", "tue", "wed", "thu", "fri"]) - {day for day, _ in occupied}
-    )
-    free_days_kr = [DAY_KR[d] for d in actual_free_days]
+    actual_free_days = sorted(set(WEEKDAYS) - {day for day, _ in occupied})
+    free_days_kr = [DAY_KR[d] for d in actual_free_days if d in DAY_KR]
 
-    tag_parts = [DAY_KR_SHORT[d] for d in actual_free_days[:2]]
+    tag_parts = [DAY_KR_SHORT[d] for d in actual_free_days[:2] if d in DAY_KR_SHORT]
     tag = "·".join(tag_parts) + " 공강" if tag_parts else f"플랜 {plan_idx + 1}"
 
     reason = _generate_reason(selected, actual_free_days, req)
@@ -138,8 +172,9 @@ def _build_plan(
         "general_required": 0, "general_elective": 0,
     }
     for c in selected:
-        if c.course_type in breakdown:
-            breakdown[c.course_type] += c.credits
+        cat = grad_category_of(c.course_type)
+        if cat in breakdown:
+            breakdown[cat] += c.credits
 
     return {
         "plan_id": _make_plan_id(plan_idx + 1),
@@ -155,8 +190,8 @@ def _build_plan(
 
 
 def _generate_reason(selected: list[Course], actual_free_days: list, req: RecommendRequest) -> str:
-    free_str = "·".join(DAY_KR_SHORT[d] for d in actual_free_days[:2]) if actual_free_days else ""
-    required_cnt = sum(1 for c in selected if c.course_type in ("major_required", "general_required"))
+    free_str = "·".join(DAY_KR_SHORT[d] for d in actual_free_days[:2] if d in DAY_KR_SHORT) if actual_free_days else ""
+    required_cnt = sum(1 for c in selected if c.course_type in REQUIRED_TYPES)
     elective_cnt = len(selected) - required_cnt
 
     parts = []
@@ -171,35 +206,50 @@ def _generate_reason(selected: list[Course], actual_free_days: list, req: Recomm
 
 
 def create_recommendation(student: Student, req: RecommendRequest, db: Session) -> dict:
-    history_done = {
-        h.course_id
-        for h in db.query(CourseHistory).filter(
-            CourseHistory.student_id == student.id,
-            CourseHistory.status.in_(["done", "in_progress"]),
-        ).all()
+    history_subjects = {
+        c.subject_code
+        for c in (
+            db.query(Course)
+            .join(CourseHistory, Course.course_id == CourseHistory.course_id)
+            .filter(
+                CourseHistory.student_id == student.id,
+                CourseHistory.status.in_(["done", "in_progress"]),
+            )
+            .all()
+        )
     }
 
-    all_courses = db.query(Course).filter(Course.semester == SEMESTER).all()
+    all_courses = (
+        db.query(Course)
+        .filter(Course.semester == SEMESTER)
+        .all()
+    )
 
-    available = [c for c in all_courses if c.course_id not in history_done and c.schedules]
+    available = []
+    for c in all_courses:
+        if not c.schedules:
+            continue
+        if c.subject_code in history_subjects:
+            continue
+        if c.target_grade is not None and c.target_grade > student.grade:
+            continue
+        available.append(c)
 
-    required = [c for c in available if c.course_type in ("major_required", "general_required")]
-    elective = [c for c in available if c.course_type in ("major_elective", "general_elective")]
+    required = [c for c in available if c.course_type in REQUIRED_TYPES]
+    elective = [c for c in available if c.course_type in ELECTIVE_TYPES]
 
-    if req.interests:
-        elective = [
-            c for c in elective
-            if c.interest_tags and any(i in c.interest_tags for i in req.interests)
-        ] or elective
+    required_groups = _group_by_subject(required)
+    elective_groups = _group_by_subject(elective)
 
     plans_data = []
     for i in range(req.plan_count):
-        plan = _build_plan(required, elective, req, variation=i, plan_idx=i)
+        plan = _build_plan(required_groups, elective_groups, req, student.grade, variation=i, plan_idx=i)
         if plan:
             plans_data.append(plan)
 
     if not plans_data and req.plan_count > 0:
-        plan = _build_plan(required + elective, [], req, variation=0, plan_idx=0)
+        merged = {**required_groups, **elective_groups}
+        plan = _build_plan(merged, {}, req, student.grade, variation=0, plan_idx=0)
         if plan:
             plans_data.append(plan)
 
@@ -249,8 +299,9 @@ def get_recommendation(rec_id: str, student: Student, db: Session) -> dict | Non
             "general_required": 0, "general_elective": 0,
         }
         for c in courses:
-            if c.course_type in breakdown:
-                breakdown[c.course_type] += c.credits
+            cat = grad_category_of(c.course_type)
+            if cat in breakdown:
+                breakdown[cat] += c.credits
         plans_data.append({
             "plan_id": plan.plan_id,
             "tag": plan.tag,
