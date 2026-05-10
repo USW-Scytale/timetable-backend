@@ -27,7 +27,7 @@ class RequiredCourse(Base):
     id = Column(Integer, primary_key=True, autoincrement=True)
     department = Column(String(100), nullable=False)
     major = Column(String(100), nullable=True)
-    course_id = Column(String(20), ForeignKey("courses.course_id"), nullable=False)
+    course_id = Column(String(30), ForeignKey("courses.course_id"), nullable=False)
     category = Column(Enum("major_required", "general_required", name="req_course_cat_enum"), nullable=False)
 
     course = relationship("Course")

@@ -37,7 +37,7 @@ class PlanCourse(Base):
     __tablename__ = "plan_courses"
 
     plan_id = Column(String(20), ForeignKey("recommendation_plans.plan_id"), primary_key=True)
-    course_id = Column(String(20), ForeignKey("courses.course_id"), primary_key=True)
+    course_id = Column(String(30), ForeignKey("courses.course_id"), primary_key=True)
 
     plan = relationship("RecommendationPlan", back_populates="plan_courses")
     course = relationship("Course")
