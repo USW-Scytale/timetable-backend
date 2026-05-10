@@ -57,13 +57,13 @@ if [ $? -ne 0 ]; then
     exit 1
 fi
 
-# MySQL 준비 대기 (최대 60초)
-echo "MySQL 준비 대기 중 (최대 60초)..."
+# MySQL 준비 대기 - app 유저로 실제 접속 가능할 때까지 확인
+echo "MySQL 준비 대기 중 (최대 120초)..."
 count=0
-until docker compose exec db mysqladmin ping -h localhost --silent 2>/dev/null; do
+until docker compose exec db mysql -u app -papp_password -e "SELECT 1;" suwon_timetable 2>/dev/null; do
     sleep 2
     count=$((count + 1))
-    if [ $count -ge 30 ]; then
+    if [ $count -ge 60 ]; then
         echo "[오류] MySQL 시작 시간 초과"
         exit 1
     fi
@@ -72,7 +72,7 @@ echo "MySQL 준비 완료!"
 
 # 초기 데이터 삽입
 echo "[5/5] DB 초기 데이터 삽입 중..."
-python -m seed.seed_data
+python3 -m seed.seed_data
 if [ $? -ne 0 ]; then
     echo "[오류] 초기 데이터 삽입 실패"
     exit 1
@@ -84,7 +84,7 @@ echo "  설치 완료!"
 echo ""
 echo "  서버 실행:"
 echo "    source venv/bin/activate"
-echo "    python app.py"
+echo "    python3 app.py"
 echo ""
 echo "  데모 계정:"
 echo "    이메일 : demo@suwon.ac.kr"

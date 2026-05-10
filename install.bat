@@ -64,14 +64,14 @@ if errorlevel 1 (
     exit /b 1
 )
 
-:: MySQL 준비 대기
-echo MySQL 준비 대기 중 (최대 60초)...
+:: MySQL 준비 대기 - app 유저로 실제 접속 가능할 때까지 확인
+echo MySQL 준비 대기 중 (최대 120초)...
 set /a count=0
 :wait_loop
-docker compose exec db mysqladmin ping -h localhost --silent > nul 2>&1
+docker compose exec db mysql -u app -papp_password -e "SELECT 1;" suwon_timetable > nul 2>&1
 if not errorlevel 1 goto db_ready
 set /a count+=1
-if %count% geq 30 (
+if %count% geq 60 (
     echo [오류] MySQL 시작 시간 초과
     pause
     exit /b 1
