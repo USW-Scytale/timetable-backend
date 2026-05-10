@@ -60,6 +60,97 @@ docker compose up --build
 
 ---
 
+## 수원대 강의 데이터 적재
+
+`install.sh` 는 6단계에서 `data/suwon_courses.csv` 가 있으면 자동으로 적재합니다.
+파일이 없으면 안내 메시지만 출력하고 정상 종료됩니다.
+
+### 1) CSV 파일 준비
+
+학사 시스템 또는 팀 내부에서 받은 CSV를 프로젝트 루트의 `data/` 디렉터리에 둡니다.
+
+```
+timetable-backend/
+└── data/
+    └── suwon_courses.csv     ← 여기
+```
+
+> `data/*.csv` 는 `.gitignore` 에 등록되어 있어 커밋되지 않습니다 (학기마다 갱신).
+
+### 2) CSV 컬럼 스펙
+
+다음 19개 컬럼을 가진 UTF-8 CSV가 필요합니다 (헤더 1행 포함).
+
+| 컬럼명 | 예시 | 비고 |
+|---|---|---|
+| 과목코드 | `11793` | `subject_code` |
+| 분반 | `1` | `division` |
+| 과목명 | `AI리터러시` | |
+| 학점 | `3` | |
+| 대상학년 | `1` | `target_grade` |
+| 개설학과명 | `자유전공학부` | `offering_dept` |
+| 소속학부명 | `한국언어문화` | `belong_dept` |
+| 대표교수명 | `윤영석` | |
+| 시간표 | `종합606(화1,2,3)` | 참고용 (실제 적재는 분리된 컬럼 사용) |
+| 교과구분 | `중핵` | 아래 매핑표 참고 |
+| 1~4학년제한 | `29,0,0,0` | `grade_limits` JSON |
+| 강의실 | `종합606` | 비어있으면 이러닝 |
+| 요일 | `화` | 한 분반이 여러 요일이면 row 여러 개 |
+| 교시리스트 | `1,2,3` | 참고용 |
+| 시작교시 | `1` | `start_period` |
+| 종료교시 | `3` | `end_period` |
+
+> **한 분반이 여러 강의실/요일을 갖는 경우** 같은 `(과목코드, 분반)` 을 여러 row 로 표기합니다.
+> ETL이 자동으로 그룹핑하여 1개 `Course` + N개 `CourseSchedule` 로 적재합니다.
+
+### 3) 교과구분 매핑
+
+ETL 은 수원대 교과구분 10종을 내부 enum (`course_type`) 6종으로 매핑합니다.
+
+| CSV 교과구분 | 내부 분류 |
+|---|---|
+| 전핵 | 전공필수 (`major_required`) |
+| 전선 / 전취 | 전공선택 (`major_elective`) |
+| 전교 | 전공교양 (`major_basic`) |
+| 중핵 / 기교 / 소교 | 핵심교양 (`core_general`) |
+| 선교 | 균형교양 (`balance_general`) |
+| 교직 / 선수 | 자유선택 (`free_general`) |
+
+새 교과구분이 데이터에 등장하면 `seed/load_suwon_courses.py` 의 `COURSE_TYPE_MAP` 에 추가하면 됩니다.
+
+### 4) 수동 적재 명령
+
+`install.sh` 외에 직접 실행하려면:
+
+```bash
+# 기본 적재 (data/suwon_courses.csv → semester='2026-1')
+python3 -m seed.load_suwon_courses
+
+# 다른 경로/학기 지정
+python3 -m seed.load_suwon_courses --csv data/suwon_2026_2.csv --semester 2026-2
+
+# 기존 학기 데이터 삭제 후 재적재
+python3 -m seed.load_suwon_courses --csv data/suwon_2026_1.csv --truncate
+
+# DB에 쓰지 않고 통계만 (검증용)
+python3 -m seed.load_suwon_courses --csv data/suwon_2026_1.csv --dry-run
+```
+
+실행 결과 예시:
+```
+[load] data/suwon_courses.csv (semester=2026-1, truncate=False, dry_run=False)
+  rows                  : 1234
+  divisions (분반 수)    : 567
+  inserted_courses      : 567
+  inserted_schedules    : 890
+  skipped_unknown_type  : 0
+[done]
+```
+
+`skipped_unknown_type` 이 0이 아니면 새 교과구분이 등장한 것이니 매핑 추가가 필요합니다.
+
+---
+
 ## 프로젝트 구조
 
 ```
@@ -74,7 +165,10 @@ timetable-backend/
 │   ├── services/            # 비즈니스 로직
 │   └── core/                # 인증, 예외처리, 교시 유틸
 ├── alembic/                 # DB 마이그레이션
-├── seed/                    # 초기 데이터
+├── seed/
+│   ├── seed_data.py             # 데모 데이터 시드
+│   └── load_suwon_courses.py    # 수원대 강의 CSV ETL
+├── data/                    # 강의 CSV 원본 (gitignore)
 ├── app.py                   # 로컬 실행 진입점
 ├── install.bat              # Windows 설치 스크립트
 ├── install.sh               # Mac/Linux 설치 스크립트
