@@ -20,7 +20,7 @@ fi
 
 # 가상환경 생성
 echo ""
-echo "[1/5] 가상환경 생성 중..."
+echo "[1/6] 가상환경 생성 중..."
 python3 -m venv venv
 if [ $? -ne 0 ]; then
     echo "[오류] 가상환경 생성 실패"
@@ -28,7 +28,7 @@ if [ $? -ne 0 ]; then
 fi
 
 # 패키지 설치
-echo "[2/5] 패키지 설치 중..."
+echo "[2/6] 패키지 설치 중..."
 source venv/bin/activate
 pip install --upgrade pip -q
 pip install --prefer-binary -r requirements.txt -q
@@ -38,7 +38,7 @@ if [ $? -ne 0 ]; then
 fi
 
 # .env 파일 생성
-echo "[3/5] 환경 파일 생성 중..."
+echo "[3/6] 환경 파일 생성 중..."
 if [ ! -f .env ]; then
     cat > .env << 'EOF'
 DATABASE_URL=mysql+pymysql://app:app_password@localhost:3306/suwon_timetable
@@ -50,7 +50,7 @@ else
 fi
 
 # MySQL 컨테이너 시작
-echo "[4/5] MySQL DB 시작 중..."
+echo "[4/6] MySQL DB 시작 중..."
 docker compose up -d db
 if [ $? -ne 0 ]; then
     echo "[오류] MySQL 컨테이너 시작 실패"
@@ -70,11 +70,11 @@ until docker compose exec db mysql -u app -papp_password -e "SELECT 1;" suwon_ti
 done
 echo "MySQL 준비 완료!"
 
-# 초기 데이터 삽입
-echo "[5/6] DB 초기 데이터 삽입 중..."
-python3 -m seed.seed_data
+# DB 스키마 적용
+echo "[5/6] DB 스키마 적용 중 (alembic upgrade head)..."
+alembic upgrade head
 if [ $? -ne 0 ]; then
-    echo "[오류] 초기 데이터 삽입 실패"
+    echo "[오류] DB 스키마 적용 실패"
     exit 1
 fi
 
@@ -99,8 +99,4 @@ echo ""
 echo "  서버 실행:"
 echo "    source venv/bin/activate"
 echo "    python3 app.py"
-echo ""
-echo "  데모 계정:"
-echo "    이메일 : demo@suwon.ac.kr"
-echo "    비밀번호: demo1234"
 echo "========================================"

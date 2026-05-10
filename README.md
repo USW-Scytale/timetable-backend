@@ -166,7 +166,6 @@ timetable-backend/
 │   └── core/                # 인증, 예외처리, 교시 유틸
 ├── alembic/                 # DB 마이그레이션
 ├── seed/
-│   ├── seed_data.py             # 데모 데이터 시드
 │   └── load_suwon_courses.py    # 수원대 강의 CSV ETL
 ├── data/                    # 강의 CSV 원본 (gitignore)
 ├── app.py                   # 로컬 실행 진입점

@@ -13,3 +13,7 @@ build/
 
 # 수원대 강의 CSV 원본 (대용량, 학기마다 갱신)
 data/*.csv
+
+# Jupyter checkpoints
+.ipynb_checkpoints/
+**/.ipynb_checkpoints/
