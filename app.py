@@ -1,8 +1,3 @@
-import os
-
-# MySQL 없이 SQLite로 실행 (timetable.db 파일이 자동 생성됨)
-os.environ.setdefault("DATABASE_URL", "sqlite:///./timetable.db")
-
 import uvicorn
 
 if __name__ == "__main__":
