@@ -25,13 +25,17 @@ from app.models.course import CourseSchedule
 from app.models.department import College, Department
 from app.models.room import Building, Room
 
-# 강의실명 파싱: 앞부분(한글/영문)=건물, 뒷부분([A-Z]?숫자)=호실
-# 예) 종합606 → ("종합","606"), 미래B102 → ("미래","B102"), IT306 → ("IT","306")
-_ROOM_RE = re.compile(r"^([가-힣A-Za-z]+?)([A-Z]?\d+)$")
+# 건물명이 한글로 끝나면 B102 같은 letter prefix 허용 (지하층 등)
+# 예) 종합606 → ("종합","606"), 미래B102 → ("미래","B102"), 2공대302 → ("2공대","302")
+_ROOM_RE_KR = re.compile(r"^(.+[가-힣])([A-Z]?\d{2,4})$")
+# 건물명이 영문으로 끝나면(IT 등) 순수 숫자만 방번호로 인식
+# 예) IT306 → ("IT","306")
+_ROOM_RE_EN = re.compile(r"^(.+?)(\d{2,4})$")
 
 
 def _parse_room(raw: str) -> tuple[str, str] | None:
-    m = _ROOM_RE.match(raw.strip())
+    raw = raw.strip()
+    m = _ROOM_RE_KR.match(raw) or _ROOM_RE_EN.match(raw)
     if not m:
         return None
     return m.group(1), m.group(2)   # (building_id, room_suffix)
