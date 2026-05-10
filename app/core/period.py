@@ -48,6 +48,6 @@ def make_schedule_text(schedules: list) -> str:
     parts = []
     for day, periods in day_map.items():
         start = PERIOD_START_TIME[min(periods)]
-        end = PERIOD_END_TIME[max(periods) + (1 if len(periods) > 1 else 0) - 1]
+        end = PERIOD_END_TIME[max(periods)]
         parts.append(f"{DAY_KR_SHORT[day]} {start}~{end}")
     return ", ".join(parts)

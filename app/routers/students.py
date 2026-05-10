@@ -57,6 +57,30 @@ def get_profile(
     }
 
 
+@router.get("/credits")
+def get_credits(
+    db: Session = Depends(get_db),
+    student: Student = Depends(get_current_student),
+):
+    sc = student.credits
+    if not sc:
+        return {
+            "success": True,
+            "data": {"major_required": 0, "major_core": 0, "major_elective": 0, "general": 0, "total": 0},
+        }
+    return {
+        "success": True,
+        "data": {
+            "major_required": sc.major_required,
+            "major_core": sc.major_core,
+            "major_elective": sc.major_elective,
+            "general": sc.general,
+            "total": sc.major_required + sc.major_core + sc.major_elective + sc.general,
+            "updated_at": sc.updated_at,
+        },
+    }
+
+
 @router.put("/credits")
 def upsert_credits(
     req: CreditsUpdateRequest,

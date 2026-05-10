@@ -7,7 +7,7 @@ class RecommendRequest(BaseModel):
     start_hour: int = Field(..., ge=8, le=12)
     time_preference: Literal["morning", "afternoon", "any"]
     free_days: Optional[List[Literal["mon", "tue", "wed", "thu", "fri"]]] = None
-    target_credits: int = Field(..., ge=12, le=21)
+    target_credits: Literal[12, 15, 18, 21]
     plan_period: Literal["single", "year"]
     interests: Optional[List[str]] = None
     plan_count: Literal[1, 3] = 1

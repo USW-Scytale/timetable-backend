@@ -3,10 +3,8 @@ from typing import Optional
 from fastapi import APIRouter, Depends
 from sqlalchemy.orm import Session
 
-from app.core.auth import get_current_user
 from app.database import get_db
 from app.models.department import College, Department, Major
-from app.models.user import User
 
 router = APIRouter(prefix="/departments", tags=["departments"])
 
@@ -16,7 +14,6 @@ def get_departments(
     college: Optional[str] = None,
     department: Optional[str] = None,
     db: Session = Depends(get_db),
-    _: User = Depends(get_current_user),
 ):
     college_query = db.query(College)
     if college:

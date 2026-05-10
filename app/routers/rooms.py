@@ -8,7 +8,7 @@ from app.database import get_db
 from app.models.user import User
 from app.services import room_service
 
-router = APIRouter(tags=["rooms"])
+router = APIRouter(prefix="/rooms", tags=["rooms"])
 
 
 @router.get("/buildings")
@@ -31,7 +31,7 @@ def get_buildings(
     }
 
 
-@router.get("/rooms/availability")
+@router.get("/availability")
 def get_room_availability(
     building_id: Optional[str] = None,
     period: Optional[int] = None,
