@@ -25,18 +25,15 @@ from app.models.course import Course, CourseSchedule
 
 COURSE_TYPE_MAP: dict[str, str] = {
     # 전공
-    "전필": "major_required",
     "전선": "major_elective",
-    "전핵": "major_required",   # 전공핵심 → 전공필수와 동급
+    "전핵": "major_required",   # 전공핵심
     "전교": "major_basic",       # 전공교양/전공기초
-    "전취": "major_elective",   # 전공취업/전공진로 → 전공선택과 함께 처리
+    "전취": "major_elective",   # 전공취업/전공진로
     # 교양
     "중핵": "core_general",      # 핵심교양
     "기교": "core_general",      # 기초교양 (글쓰기/영어 등)
     "소교": "core_general",      # 소양교양
-    "균형": "balance_general",
     "선교": "balance_general",   # 선택교양
-    "자유": "free_general",
     # 기타
     "교직": "free_general",      # 교직과정
     "선수": "free_general",      # 선수과목 (다른 학부 보충)
