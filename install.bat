@@ -90,8 +90,14 @@ if errorlevel 1 (
     exit /b 1
 )
 
-:: HTML 목업 추가 데이터 적재 (졸업요건, 빌딩 보강)
-echo [6/6] 목업 데이터 적재 중 (졸업요건 / 빌딩 메타)...
+:: DB 마이그레이션 적용 (덤프 이후 추가 스키마)
+echo [6/6] DB 마이그레이션 및 목업 데이터 적재 중...
+alembic stamp 0001_baseline 2>nul
+alembic upgrade head
+if errorlevel 1 (
+    echo [경고] 마이그레이션 실패 - 계속 진행합니다.
+)
+
 python -m seed.load_html_mock
 if errorlevel 1 (
     echo [경고] 목업 데이터 적재 실패 - 계속 진행합니다.

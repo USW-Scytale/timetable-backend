@@ -12,10 +12,7 @@ router = APIRouter(prefix="/rooms", tags=["rooms"])
 
 
 @router.get("/buildings")
-def get_buildings(
-    db: Session = Depends(get_db),
-    _: User = Depends(get_current_user),
-):
+def get_buildings(db: Session = Depends(get_db)):
     buildings = room_service.get_buildings(db)
     return {
         "success": True,
@@ -25,8 +22,30 @@ def get_buildings(
                 "name": b.name,
                 "icon": b.icon,
                 "total_rooms": b.total_rooms,
+                "x": b.x,
+                "y": b.y,
+                "elev": b.elev,
+                "terrain": b.terrain,
+                "aliases": b.aliases or [],
             }
             for b in buildings
+        ],
+    }
+
+
+@router.get("/walk-edges")
+def get_walk_edges(db: Session = Depends(get_db)):
+    edges = room_service.get_walk_edges(db)
+    return {
+        "success": True,
+        "data": [
+            {
+                "from_building_id": e.from_building_id,
+                "to_building_id": e.to_building_id,
+                "distance_meters": e.distance_meters,
+                "profile": e.profile,
+            }
+            for e in edges
         ],
     }
 

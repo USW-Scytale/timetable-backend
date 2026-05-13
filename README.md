@@ -65,7 +65,8 @@ docker compose up --build
 | 단계 | 스크립트 | 내용 |
 |---|---|---|
 | 5/6 | `seed/Dump20260513.sql` import | 스키마 + 강의·빌딩·학과 기본 데이터 (851과목/1617분반) |
-| 6/6 | `python3 -m seed.load_html_mock` | 졸업요건·필수과목 적재, 빌딩 name/icon 보강 |
+| 6/6 | `alembic upgrade head` | 추가 스키마 마이그레이션 (buildings 좌표·aliases, walk_edges 테이블) |
+| 6/6 | `python3 -m seed.load_html_mock` | 졸업요건·필수과목 적재, 빌딩 좌표/aliases/아이콘 보강, walk_edges 적재 |
 
 ---
 
@@ -172,7 +173,8 @@ timetable-backend/
 | POST | `/v1/timetables/saved` | 시간표 저장 | ✓ |
 | GET | `/v1/timetables/saved` | 저장된 시간표 목록 | ✓ |
 | GET | `/v1/courses/search` | 강의 검색 | ✓ |
-| GET | `/v1/rooms/buildings` | 건물 목록 조회 | ✓ |
+| GET | `/v1/rooms/buildings` | 건물 목록 조회 (좌표·aliases 포함) | ✗ |
+| GET | `/v1/rooms/walk-edges` | 건물 간 도보 그래프 | ✗ |
 | GET | `/v1/rooms/availability` | 빈 강의실 조회 | ✓ |
 | GET | `/v1/graduation/analysis` | 졸업요건 분석 | ✓ |
 | GET | `/v1/graduation/checklist` | 필수과목 체크리스트 | ✓ |

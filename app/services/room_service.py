@@ -3,12 +3,16 @@ from typing import Optional
 from sqlalchemy.orm import Session
 
 from app.core.period import get_current_period, get_current_day
-from app.models.room import Building, Room
+from app.models.room import Building, Room, WalkEdge
 from app.models.course import CourseSchedule, Course
 
 
 def get_buildings(db: Session):
     return db.query(Building).all()
+
+
+def get_walk_edges(db: Session):
+    return db.query(WalkEdge).all()
 
 
 def get_room_availability(

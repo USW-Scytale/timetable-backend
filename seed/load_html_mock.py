@@ -35,7 +35,7 @@ from app.database import SessionLocal
 from app.models.course import Course, CourseSchedule
 from app.models.department import College, Department, Major
 from app.models.graduation import GraduationRequirement, RequiredCourse
-from app.models.room import Building, Room
+from app.models.room import Building, Room, WalkEdge
 
 
 DEFAULT_DATA_DIR = os.path.join(os.path.dirname(__file__), "data")
@@ -93,13 +93,12 @@ def _alias_to_building_info(campus: dict) -> dict[str, dict]:
 
 def load_buildings(db, campus: dict, stats: dict, dry_run: bool,
                    extra_prefixes: set[str] | None = None):
-    """기존 building_id 는 name/icon 업데이트.
+    """기존 building_id 는 name/icon/x/y/elev/terrain/aliases 업데이트.
     extra_prefixes(예: course_pool 에서 추출한 신규 접두사)는 새로 INSERT 한다.
     """
     alias_info = _alias_to_building_info(campus)
 
     if dry_run:
-        # dry-run 에서는 DB 비교를 못 하므로 후보 수만 표시
         stats["buildings_candidates"] += len(alias_info)
         if extra_prefixes:
             stats["buildings_extra_candidates"] += len(extra_prefixes)
@@ -107,18 +106,50 @@ def load_buildings(db, campus: dict, stats: dict, dry_run: bool,
 
     existing = {b.building_id: b for b in db.query(Building).all()}
 
-    # 1) 기존 빌딩 보강
+    # campus_buildings.json 의 key → aliases 로부터 alias → sem_key 역매핑
+    alias_to_sem: dict[str, str] = {}
+    for sem_key, info in campus.items():
+        for alias in info.get("aliases") or []:
+            alias_to_sem[alias] = sem_key
+
+    def _campus_info_for_bid(bid: str):
+        """building_id(한글 접두사) → campus JSON row."""
+        # 직접 매핑: bid 가 alias 일 때
+        sem_key = alias_to_sem.get(bid)
+        if sem_key:
+            return campus[sem_key]
+        # fallback: sem_key == bid
+        return campus.get(bid)
+
+    # 1) 기존 빌딩 보강 (name, icon, x, y, elev, terrain, aliases)
     for bid, row in existing.items():
-        info = alias_info.get(bid)
-        if not info:
-            continue
+        alias_dict = alias_info.get(bid)
+        campus_row = _campus_info_for_bid(bid)
         changed = False
-        if row.name != info["name"]:
-            row.name = info["name"]
-            changed = True
-        if row.icon != info["icon"]:
-            row.icon = info["icon"]
-            changed = True
+        if alias_dict:
+            if row.name != alias_dict["name"]:
+                row.name = alias_dict["name"]
+                changed = True
+            if row.icon != alias_dict["icon"]:
+                row.icon = alias_dict["icon"]
+                changed = True
+        if campus_row:
+            if row.x != campus_row.get("x"):
+                row.x = campus_row.get("x")
+                changed = True
+            if row.y != campus_row.get("y"):
+                row.y = campus_row.get("y")
+                changed = True
+            if row.elev != campus_row.get("elev"):
+                row.elev = campus_row.get("elev")
+                changed = True
+            if row.terrain != campus_row.get("terrain"):
+                row.terrain = campus_row.get("terrain")
+                changed = True
+            new_aliases = campus_row.get("aliases") or []
+            if row.aliases != new_aliases:
+                row.aliases = new_aliases
+                changed = True
         if changed:
             stats["buildings_updated"] += 1
 
@@ -127,8 +158,54 @@ def load_buildings(db, campus: dict, stats: dict, dry_run: bool,
         if prefix in existing:
             continue
         info = alias_info.get(prefix, {"name": prefix, "icon": None})
-        db.add(Building(building_id=prefix, name=info["name"], icon=info["icon"], total_rooms=0))
+        campus_row = _campus_info_for_bid(prefix) or {}
+        db.add(Building(
+            building_id=prefix,
+            name=info["name"],
+            icon=info["icon"],
+            total_rooms=0,
+            x=campus_row.get("x"),
+            y=campus_row.get("y"),
+            elev=campus_row.get("elev"),
+            terrain=campus_row.get("terrain"),
+            aliases=campus_row.get("aliases") or [],
+        ))
         stats["buildings_inserted"] += 1
+
+
+def load_walk_edges(db, walk_edges: list, stats: dict, dry_run: bool):
+    """walk_edges.json → walk_edges 테이블 적재.
+    형식: [[from_id, to_id, distance_meters, profile], ...]
+    양방향 모두 적재한다 (from→to / to→from).
+    """
+    if dry_run:
+        stats["walk_edges_candidates"] += len(walk_edges) * 2
+        return
+
+    existing = {
+        (e.from_building_id, e.to_building_id)
+        for e in db.query(WalkEdge).all()
+    }
+    valid_buildings = {b.building_id for b in db.query(Building).all()}
+
+    for row in walk_edges:
+        if len(row) < 4:
+            continue
+        from_id, to_id, distance, profile = row[0], row[1], int(row[2]), str(row[3])
+        if from_id not in valid_buildings or to_id not in valid_buildings:
+            stats["walk_edges_skipped_unknown"] = stats.get("walk_edges_skipped_unknown", 0) + 1
+            continue
+        for f, t in [(from_id, to_id), (to_id, from_id)]:
+            if (f, t) in existing:
+                continue
+            db.add(WalkEdge(
+                from_building_id=f,
+                to_building_id=t,
+                distance_meters=distance,
+                profile=profile,
+            ))
+            existing.add((f, t))
+            stats["walk_edges_inserted"] += 1
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -415,6 +492,7 @@ def main():
 
     campus = _load_json(_path("campus_buildings.json"))
     grad = _load_json(_path("dept_grad_data.json"))
+    walk_edges_data = _load_json(_path("walk_edges.json")) if os.path.exists(_path("walk_edges.json")) else []
     uni_tree = _load_json(_path("uni_data.json")) if args.include_uni_tree else None
     course_pool = _load_json(_path("course_pool.json")) if args.include_courses else None
 
@@ -434,6 +512,9 @@ def main():
     db = SessionLocal()
     try:
         load_buildings(db, campus, stats, args.dry_run, extra_prefixes)
+        if walk_edges_data:
+            db.flush()
+            load_walk_edges(db, walk_edges_data, stats, args.dry_run)
         load_grad_requirements(db, grad, stats, args.dry_run)
         if not args.skip_required_courses:
             load_required_courses(db, grad, stats, args.dry_run)
@@ -451,9 +532,16 @@ def main():
         print(f"  buildings_candidates        : {stats['buildings_candidates']}"
               + (f" (+extra {stats['buildings_extra_candidates']})"
                  if stats.get('buildings_extra_candidates') else ""))
+        if walk_edges_data:
+            print(f"  walk_edges_candidates       : {stats.get('walk_edges_candidates', 0)}")
     else:
         print(f"  buildings_inserted          : {stats['buildings_inserted']}")
         print(f"  buildings_updated           : {stats['buildings_updated']}")
+        if walk_edges_data:
+            print(f"  walk_edges_inserted         : {stats.get('walk_edges_inserted', 0)}")
+            skipped = stats.get("walk_edges_skipped_unknown", 0)
+            if skipped:
+                print(f"  walk_edges_skipped          : {skipped}")
     print(f"  grad_requirements_inserted  : {stats['grad_requirements_inserted']}")
     if not args.skip_required_courses:
         if args.dry_run:
