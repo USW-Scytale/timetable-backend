@@ -1,14 +1,14 @@
 """add username and name to users
 
-Revision ID: 0002_add_username_name
-Revises: 0001_baseline
+Revision ID: 0003_add_username_name
+Revises: 0002_buildings_walk_edges
 Create Date: 2026-05-13
 """
 from alembic import op
 import sqlalchemy as sa
 
-revision = "0002_add_username_name"
-down_revision = "0001_baseline"
+revision = "0003_add_username_name"
+down_revision = "0002_buildings_walk_edges"
 branch_labels = None
 depends_on = None
 
