@@ -35,14 +35,13 @@ app.add_middleware(
 app.add_exception_handler(RequestValidationError, validation_exception_handler)
 app.add_exception_handler(HTTPException, http_exception_handler)
 
-API_PREFIX = "/v1"
-app.include_router(auth.router, prefix=API_PREFIX)
-app.include_router(departments.router, prefix=API_PREFIX)
-app.include_router(students.router, prefix=API_PREFIX)
-app.include_router(timetables.router, prefix=API_PREFIX)
-app.include_router(rooms.router, prefix=API_PREFIX)
-app.include_router(graduation.router, prefix=API_PREFIX)
-app.include_router(courses.router, prefix=API_PREFIX)
+app.include_router(auth.router)
+app.include_router(departments.router)
+app.include_router(students.router)
+app.include_router(timetables.router)
+app.include_router(rooms.router)
+app.include_router(graduation.router)
+app.include_router(courses.router)
 
 
 @app.get("/health")
