@@ -162,7 +162,7 @@ def _dump(obj, path: str) -> None:
 
 def main():
     parser = argparse.ArgumentParser(description="HTML 목업 데이터 → JSON 분리")
-    parser.add_argument("--html", default="/home/jovyan/work/suwon_smart_timetable.html")
+    parser.add_argument("--html", default=os.path.join(os.path.dirname(os.path.dirname(__file__)), "suwon_smart_timetable.html"))
     parser.add_argument("--out", default=os.path.join(os.path.dirname(__file__), "data"))
     args = parser.parse_args()
 
