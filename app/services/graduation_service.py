@@ -11,6 +11,20 @@ from app.models.course import Course, CourseHistory, Prerequisite
 from app.models.graduation import GraduationRequirement, RequiredCourse
 
 
+def _norm_dept(name: str) -> str:
+    """'미디어SW전공' → '미디어SW' 접미사 제거."""
+    return name[:-2] if name and name.endswith("전공") else name
+
+
+def _dept_variants(dept: str) -> list:
+    """department 이름의 '전공' 있는/없는 두 가지 변형을 반환."""
+    norm = _norm_dept(dept)
+    variants = [norm]
+    if dept != norm:
+        variants.append(dept)
+    return variants
+
+
 def _done_credits_by_category(student_id: str, db: Session) -> dict:
     """이수 완료된 강의를 졸업요건 카테고리(grad_category)로 합산."""
     history = (
@@ -28,10 +42,11 @@ def _done_credits_by_category(student_id: str, db: Session) -> dict:
 
 
 def get_graduation_analysis(student: Student, db: Session) -> dict:
+    dept_variants = _dept_variants(student.department)
     reqs = (
         db.query(GraduationRequirement)
         .filter(
-            GraduationRequirement.department == student.department,
+            GraduationRequirement.department.in_(dept_variants),
             GraduationRequirement.major == student.major,
         )
         .all()
@@ -40,7 +55,7 @@ def get_graduation_analysis(student: Student, db: Session) -> dict:
         reqs = (
             db.query(GraduationRequirement)
             .filter(
-                GraduationRequirement.department == student.department,
+                GraduationRequirement.department.in_(dept_variants),
                 GraduationRequirement.major.is_(None),
             )
             .all()
@@ -84,8 +99,9 @@ def get_graduation_analysis(student: Student, db: Session) -> dict:
 
 
 def get_checklist(student: Student, db: Session, category: Optional[str] = None) -> list:
+    dept_variants = _dept_variants(student.department)
     req_query = db.query(RequiredCourse).filter(
-        RequiredCourse.department == student.department,
+        RequiredCourse.department.in_(dept_variants),
     )
     if student.major:
         req_query = req_query.filter(
@@ -158,11 +174,12 @@ def get_graduation_recommendations(student: Student, db: Session) -> list:
 
     req_elective = _get_required_credits(student, "major_elective", db)
     if done_elective < req_elective:
+        dept_variants = _dept_variants(student.department)
         elective_candidates = (
             db.query(Course)
             .filter(
                 Course.course_type == "major_elective",
-                Course.belong_dept == student.department,
+                Course.belong_dept.in_(dept_variants),
                 ~Course.course_id.in_(history_map.keys()),
             )
             .limit(3)
@@ -236,10 +253,11 @@ def get_prerequisites(student: Student, db: Session, scope: Optional[str] = "maj
 
 
 def _get_required_credits(student: Student, category: str, db: Session) -> int:
+    dept_variants = _dept_variants(student.department)
     req = (
         db.query(GraduationRequirement)
         .filter(
-            GraduationRequirement.department == student.department,
+            GraduationRequirement.department.in_(dept_variants),
             GraduationRequirement.major == student.major,
             GraduationRequirement.category == category,
         )
