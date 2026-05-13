@@ -1,8 +1,13 @@
 #!/usr/bin/env python3
 """
 timetable-backend API Integration Test
+
 Usage:
-  python test_api.py [--url http://localhost:8000]
+  # 기존 계정으로 로그인 후 테스트 (권장)
+  python test_api.py --email user@example.com --password mypass
+
+  # 임시 계정을 자동 생성해서 테스트 (회원가입 엔드포인트도 함께 검증)
+  python test_api.py
 """
 
 import sys
@@ -85,7 +90,23 @@ def test_health(s: requests.Session):
     check("GET /health", s.get(f"{BASE_URL}/health"), expect_success=False)
 
 
-def test_auth(s: requests.Session) -> tuple[str | None, str]:
+def test_auth_login(s: requests.Session, email: str, password: str) -> str | None:
+    """기존 계정으로 로그인해서 토큰만 반환."""
+    _section("Auth")
+    print(f"  {DIM}계정: {email}{RST}")
+
+    r = s.post(f"{BASE_URL}/v1/auth/login", json={"email": email, "password": password})
+    data = check("POST /v1/auth/login", r)
+
+    # 잘못된 비밀번호 → 401
+    r2 = s.post(f"{BASE_URL}/v1/auth/login", json={"email": email, "password": "wrong!"})
+    check("POST /v1/auth/login (틀린 비밀번호 → 401)", r2, expect_status=401, expect_success=False)
+
+    return data.get("access_token") if data else None
+
+
+def test_auth_register(s: requests.Session) -> tuple[str | None, str]:
+    """임시 계정을 생성하고 로그인해서 토큰을 반환. 회원가입 엔드포인트도 함께 검증."""
     _section("Auth")
     email = _rnd_email()
     pw = "Test1234!"
@@ -372,7 +393,12 @@ def test_timetables(s: requests.Session, token: str):
 def main():
     parser = argparse.ArgumentParser(description="timetable-backend API integration tests")
     parser.add_argument("--url", default="http://localhost:8000", metavar="URL")
+    parser.add_argument("--email", default=None, help="로그인할 이메일 (생략 시 임시 계정 자동 생성)")
+    parser.add_argument("--password", default=None, help="로그인할 비밀번호")
     args = parser.parse_args()
+
+    if bool(args.email) != bool(args.password):
+        parser.error("--email과 --password는 함께 사용해야 합니다.")
 
     global BASE_URL
     BASE_URL = args.url.rstrip("/")
@@ -386,10 +412,14 @@ def main():
     # 1. Health
     test_health(s)
 
-    # 2. Auth — 이후 테스트에 토큰 필요
-    token, _email = test_auth(s)
+    # 2. Auth — 로그인해서 토큰 획득
+    if args.email:
+        token = test_auth_login(s, args.email, args.password)
+    else:
+        token, _ = test_auth_register(s)
+
     if not token:
-        print(f"\n{RED}Auth 실패 — 인증이 필요한 엔드포인트 테스트를 중단합니다.{RST}")
+        print(f"\n{RED}로그인 실패 — 인증이 필요한 엔드포인트 테스트를 중단합니다.{RST}")
         _print_summary()
         sys.exit(1)
 
