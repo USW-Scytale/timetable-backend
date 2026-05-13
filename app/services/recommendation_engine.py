@@ -254,6 +254,11 @@ def create_recommendation(student: Student, req: RecommendRequest, db: Session) 
             plans_data.append(plan)
 
     rec_id = _make_rec_id()
+
+    # plan_id는 전역 PK이므로 rec_id를 접두사로 붙여 유일성 보장
+    for i, plan_data in enumerate(plans_data):
+        plan_data["plan_id"] = f"{rec_id}-P{i + 1:02d}"
+
     rec = TimetableRecommendation(
         recommendation_id=rec_id,
         student_id=student.id,

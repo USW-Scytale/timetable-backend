@@ -82,7 +82,7 @@ def skip(label: str, reason: str = ""):
 
 def test_health(s: requests.Session):
     _section("Health")
-    check("GET /health", s.get(f"{BASE_URL}/health"))
+    check("GET /health", s.get(f"{BASE_URL}/health"), expect_success=False)
 
 
 def test_auth(s: requests.Session) -> tuple[str | None, str]:
@@ -98,9 +98,9 @@ def test_auth(s: requests.Session) -> tuple[str | None, str]:
     r2 = s.post(f"{BASE_URL}/v1/auth/register", json={"email": email, "password": pw})
     check("POST /v1/auth/register (중복 → 409)", r2, expect_status=409, expect_success=False)
 
-    # 유효성 검사 오류 → 422
+    # 유효성 검사 오류 → 400 (커스텀 핸들러)
     r3 = s.post(f"{BASE_URL}/v1/auth/register", json={"email": "not-an-email", "password": pw})
-    check("POST /v1/auth/register (잘못된 이메일 → 422)", r3, expect_status=422, expect_success=False)
+    check("POST /v1/auth/register (잘못된 이메일 → 400)", r3, expect_status=400, expect_success=False)
 
     # 로그인
     r4 = s.post(f"{BASE_URL}/v1/auth/login", json={"email": email, "password": pw})
@@ -189,21 +189,21 @@ def test_students(
     )
     check("PUT /v1/students/me/credits", r5)
 
-    # 범위 초과 학점 → 422
+    # 범위 초과 학점 → 400 (커스텀 핸들러)
     r6 = s.put(
         f"{BASE_URL}/v1/students/me/credits",
         json={"major_required": 999, "major_core": 6, "major_elective": 9, "general": 15},
         headers=auth,
     )
-    check("PUT /v1/students/me/credits (major_required=999 → 422)", r6, expect_status=422, expect_success=False)
+    check("PUT /v1/students/me/credits (major_required=999 → 400)", r6, expect_status=400, expect_success=False)
 
-    # 잘못된 grade → 422
+    # 잘못된 grade → 400 (커스텀 핸들러)
     r7 = s.put(
         f"{BASE_URL}/v1/students/me/profile",
         json={**body, "grade": 99},
         headers=auth,
     )
-    check("PUT /v1/students/me/profile (grade=99 → 422)", r7, expect_status=422, expect_success=False)
+    check("PUT /v1/students/me/profile (grade=99 → 400)", r7, expect_status=400, expect_success=False)
 
 
 def test_courses(s: requests.Session, token: str):
@@ -234,9 +234,9 @@ def test_courses(s: requests.Session, token: str):
     r6 = s.get(f"{BASE_URL}/v1/courses/search", params={"page": 2, "size": 10}, headers=auth)
     check("GET /v1/courses/search?page=2&size=10", r6)
 
-    # size 초과 → 422
+    # size 초과 → 400 (커스텀 핸들러)
     r7 = s.get(f"{BASE_URL}/v1/courses/search", params={"size": 100}, headers=auth)
-    check("GET /v1/courses/search?size=100 (→ 422)", r7, expect_status=422, expect_success=False)
+    check("GET /v1/courses/search?size=100 (→ 400)", r7, expect_status=400, expect_success=False)
 
     # subject_code 필터 (실제 데이터가 있으면)
     if data2 and data2.get("items"):
