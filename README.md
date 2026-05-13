@@ -1,7 +1,7 @@
 # 수원대 스마트 시간표 - Backend
 
 수원대학교 스마트 시간표 서비스의 백엔드 API 서버입니다.  
-FastAPI + SQLite(로컬) / MySQL(운영) 기반으로 동작합니다.
+FastAPI + MySQL 기반으로 동작합니다.
 
 ---
 
@@ -47,8 +47,6 @@ python app.py
 
 - API 서버: http://localhost:8000
 - API 문서: http://localhost:8000/docs
-
-> SQLite DB 파일(`timetable.db`)은 서버 첫 실행 시 자동으로 생성됩니다.
 
 ---
 
