@@ -15,6 +15,11 @@ router = APIRouter(prefix="/auth", tags=["auth"])
 _DATA_DIR = Path(__file__).parent.parent.parent / "seed" / "data"
 
 
+def _norm_dept(name: str) -> str:
+    """'미디어SW전공' → '미디어SW' 처럼 '전공' 접미사 제거."""
+    return name[:-2] if name.endswith("전공") else name
+
+
 def _lookup_college(department: str) -> str:
     """학과/전공 이름으로 단과대 이름을 반환. 못 찾으면 department 값 그대로 반환."""
     try:
@@ -56,11 +61,12 @@ def register(req: RegisterRequest, db: Session = Depends(get_db)):
     db.flush()
 
     college = _lookup_college(req.department)
+    dept = _norm_dept(req.department)
     student = Student(
         id=req.student_id,
         user_id=user.id,
         college=college,
-        department=req.department,
+        department=dept,
         major=None,
         grade=req.grade,
         admission_type="normal",
@@ -76,6 +82,9 @@ def register(req: RegisterRequest, db: Session = Depends(get_db)):
 @router.post("/login")
 def login(req: LoginRequest, db: Session = Depends(get_db)):
     user = db.query(User).filter(User.username == req.username).first()
+    if not user:
+        # 이메일로도 조회 (기존 이메일 기반 가입자 지원)
+        user = db.query(User).filter(User.email == req.username).first()
     if not user or not verify_password(req.password, user.hashed_password):
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
