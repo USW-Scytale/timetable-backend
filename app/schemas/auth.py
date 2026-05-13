@@ -1,13 +1,17 @@
-from pydantic import BaseModel, EmailStr
+from pydantic import BaseModel
 
 
 class RegisterRequest(BaseModel):
-    email: EmailStr
+    username: str     # 아이디
     password: str
+    student_id: str   # 학번
+    name: str         # 이름
+    grade: int        # 학년 (1~4)
+    department: str   # 학과/전공
 
 
 class LoginRequest(BaseModel):
-    email: EmailStr
+    username: str
     password: str
 
 

@@ -44,6 +44,7 @@ def get_profile(
         "success": True,
         "data": {
             "student_id": student.id,
+            "name": current_user.name,
             "college": student.college,
             "department": student.department,
             "major": student.major,
