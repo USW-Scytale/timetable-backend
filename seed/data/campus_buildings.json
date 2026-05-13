@@ -1,0 +1,278 @@
+{
+  "humanities": {
+    "no": "01",
+    "name": "인문사회융합대학",
+    "x": 0.55,
+    "y": 0.16,
+    "elev": 74,
+    "terrain": "north-ridge",
+    "aliases": [
+      "인문"
+    ]
+  },
+  "future": {
+    "no": "02",
+    "name": "미래혁신관",
+    "x": 0.59,
+    "y": 0.4,
+    "elev": 63,
+    "terrain": "central-slope",
+    "aliases": [
+      "미래",
+      "미래B"
+    ]
+  },
+  "innovation": {
+    "no": "03",
+    "name": "혁신공과대학",
+    "x": 0.6,
+    "y": 0.52,
+    "elev": 56,
+    "terrain": "east-slope",
+    "aliases": [
+      "종합",
+      "종합B"
+    ]
+  },
+  "advanced": {
+    "no": "04",
+    "name": "고운첨단과학기술연구원",
+    "x": 0.61,
+    "y": 0.57,
+    "elev": 54,
+    "terrain": "east-slope",
+    "aliases": [
+      "첨단",
+      "자연관",
+      "자연대",
+      "자연대B"
+    ]
+  },
+  "eng1": {
+    "no": "05",
+    "name": "제1공학관",
+    "x": 0.62,
+    "y": 0.34,
+    "elev": 66,
+    "terrain": "engineering-ridge",
+    "aliases": [
+      "1공학"
+    ]
+  },
+  "eng2": {
+    "no": "06",
+    "name": "제2공학관",
+    "x": 0.64,
+    "y": 0.28,
+    "elev": 69,
+    "terrain": "engineering-ridge",
+    "aliases": [
+      "2공학"
+    ]
+  },
+  "eng3": {
+    "no": "07",
+    "name": "제3공학관",
+    "x": 0.61,
+    "y": 0.72,
+    "elev": 45,
+    "terrain": "lower-east",
+    "aliases": [
+      "3공학"
+    ]
+  },
+  "ace": {
+    "no": "08",
+    "name": "ACE교육관",
+    "x": 0.66,
+    "y": 0.31,
+    "elev": 67,
+    "terrain": "engineering-ridge",
+    "aliases": []
+  },
+  "eng4": {
+    "no": "09",
+    "name": "제4공학관",
+    "x": 0.62,
+    "y": 0.91,
+    "elev": 37,
+    "terrain": "lower-east",
+    "aliases": [
+      "4공학"
+    ]
+  },
+  "sculpture": {
+    "no": "10",
+    "name": "조형관",
+    "x": 0.5,
+    "y": 0.83,
+    "elev": 42,
+    "terrain": "south-slope",
+    "aliases": [
+      "조형"
+    ]
+  },
+  "design": {
+    "no": "11",
+    "name": "디자인앤아트대학",
+    "x": 0.47,
+    "y": 0.73,
+    "elev": 47,
+    "terrain": "south-slope",
+    "aliases": [
+      "미술",
+      "미술야외실기장"
+    ]
+  },
+  "global": {
+    "no": "12",
+    "name": "글로벌인재대학",
+    "x": 0.38,
+    "y": 0.93,
+    "elev": 34,
+    "terrain": "south-low",
+    "aliases": [
+      "글경",
+      "글경B",
+      "국제"
+    ]
+  },
+  "admin": {
+    "no": "13",
+    "name": "대학본부",
+    "x": 0.42,
+    "y": 0.88,
+    "elev": 38,
+    "terrain": "south-low",
+    "aliases": []
+  },
+  "student": {
+    "no": "14",
+    "name": "학생회관",
+    "x": 0.48,
+    "y": 0.41,
+    "elev": 60,
+    "terrain": "central-slope",
+    "aliases": []
+  },
+  "gym": {
+    "no": "15",
+    "name": "체육관",
+    "x": 0.56,
+    "y": 0.3,
+    "elev": 68,
+    "terrain": "central-slope",
+    "aliases": [
+      "체육",
+      "체육농구장"
+    ]
+  },
+  "library": {
+    "no": "16",
+    "name": "중앙도서관",
+    "x": 0.54,
+    "y": 0.49,
+    "elev": 57,
+    "terrain": "central-slope",
+    "aliases": []
+  },
+  "lifecare": {
+    "no": "17",
+    "name": "라이프케어사이언스대학",
+    "x": 0.36,
+    "y": 0.63,
+    "elev": 48,
+    "terrain": "west-low",
+    "aliases": [
+      "생활"
+    ]
+  },
+  "social": {
+    "no": "18",
+    "name": "사회관",
+    "x": 0.2,
+    "y": 0.64,
+    "elev": 45,
+    "terrain": "west-low",
+    "aliases": [
+      "복지",
+      "복지B"
+    ]
+  },
+  "sw": {
+    "no": "19",
+    "name": "지능형SW융합대학",
+    "x": 0.34,
+    "y": 0.54,
+    "elev": 51,
+    "terrain": "west-low",
+    "aliases": [
+      "IT"
+    ]
+  },
+  "belcanto": {
+    "no": "20",
+    "name": "벨칸토아트센터",
+    "x": 0.33,
+    "y": 0.44,
+    "elev": 55,
+    "terrain": "central-basin",
+    "aliases": []
+  },
+  "outdoor": {
+    "no": "21",
+    "name": "야외음악당",
+    "x": 0.16,
+    "y": 0.52,
+    "elev": 50,
+    "terrain": "west-low",
+    "aliases": []
+  },
+  "music": {
+    "no": "22",
+    "name": "음악테크놀로지대학",
+    "x": 0.18,
+    "y": 0.47,
+    "elev": 52,
+    "terrain": "west-low",
+    "aliases": [
+      "음악"
+    ]
+  },
+  "culture": {
+    "no": "23",
+    "name": "문화예술융합대학",
+    "x": 0.16,
+    "y": 0.37,
+    "elev": 57,
+    "terrain": "west-slope",
+    "aliases": []
+  },
+  "dorm": {
+    "no": "24",
+    "name": "기숙사",
+    "x": 0.13,
+    "y": 0.42,
+    "elev": 56,
+    "terrain": "west-slope",
+    "aliases": []
+  },
+  "business": {
+    "no": "25",
+    "name": "경영공학대학",
+    "x": 0.42,
+    "y": 0.98,
+    "elev": 31,
+    "terrain": "south-low",
+    "aliases": []
+  },
+  "rotc": {
+    "no": "26",
+    "name": "ROTC",
+    "x": 0.72,
+    "y": 0.37,
+    "elev": 65,
+    "terrain": "east-edge",
+    "aliases": []
+  }
+}
