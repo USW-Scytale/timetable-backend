@@ -12,7 +12,7 @@ FastAPI + SQLite(로컬) / MySQL(운영) 기반으로 동작합니다.
 | Language | Python 3.11+ |
 | Framework | FastAPI |
 | ORM | SQLAlchemy 2.0 |
-| DB (로컬) | SQLite (자동 생성) |
+| DB (로컬) | MySQL 8.0 (Docker) |
 | DB (운영) | MySQL 8.0 |
 | 인증 | JWT (python-jose) |
 | 마이그레이션 | Alembic |
@@ -207,6 +207,7 @@ timetable-backend/
 │   └── load_meta.py             # 건물/강의실/학부/학과 메타데이터 적재
 ├── data/                    # 강의 CSV 원본 (gitignore)
 ├── app.py                   # 로컬 실행 진입점
+├── test_api.py              # API 통합 테스트 스크립트
 ├── install.bat              # Windows 설치 스크립트
 ├── install.sh               # Mac/Linux 설치 스크립트
 ├── docker-compose.yml
@@ -234,8 +235,34 @@ timetable-backend/
 | GET | `/v1/rooms/buildings` | 건물 목록 조회 | ✓ |
 | GET | `/v1/rooms/availability` | 빈 강의실 조회 | ✓ |
 | GET | `/v1/graduation/analysis` | 졸업요건 분석 | ✓ |
+| GET | `/v1/graduation/checklist` | 필수과목 체크리스트 | ✓ |
+| GET | `/v1/graduation/recommendations` | 수강 추천 과목 | ✓ |
+| GET | `/v1/graduation/prerequisites` | 선이수 과목 조회 | ✓ |
 
 > 전체 API 명세는 서버 실행 후 `/docs` 에서 확인하세요.
+
+---
+
+## API 테스트
+
+서버가 실행 중인 상태에서 아래 명령으로 전체 엔드포인트를 한 번에 검증할 수 있습니다.
+
+```bash
+python test_api.py --url http://<서버주소>:8000
+```
+
+테스트 항목:
+
+| 그룹 | 항목 |
+|------|------|
+| Health | `GET /health` |
+| Auth | 회원가입, 중복(409), 로그인, 틀린 비밀번호(401) |
+| Departments | 전체 조회, college/department 필터 |
+| Students | 프로필 생성·조회, 이수학점 수정·조회, 유효성 오류(422) |
+| Courses | 검색, keyword/day/grade 필터, 페이지네이션, 범위 초과(422) |
+| Rooms | 건물 목록, 빈 강의실 조회(기본값·period·building_id) |
+| Graduation | analysis, checklist, recommendations, prerequisites |
+| Timetables | 추천 요청·조회, 없는 ID(404), 시간표 저장·목록 |
 
 ---
 
