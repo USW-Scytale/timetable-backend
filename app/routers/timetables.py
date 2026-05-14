@@ -55,3 +55,13 @@ def get_saved_timetables(
 ):
     result = recommendation_engine.get_saved_timetables(student, semester, db)
     return {"success": True, "data": result}
+
+
+@router.delete("/saved/{timetable_id}")
+def delete_saved_timetable(
+    timetable_id: str,
+    db: Session = Depends(get_db),
+    student: Student = Depends(get_current_student),
+):
+    result = recommendation_engine.delete_saved_timetable(student, timetable_id, db)
+    return {"success": True, "data": result, "message": "시간표가 삭제되었습니다."}

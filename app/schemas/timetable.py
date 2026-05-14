@@ -11,6 +11,8 @@ class RecommendRequest(BaseModel):
     plan_period: Literal["single", "year"]
     interests: Optional[List[str]] = None
     plan_count: Literal[1, 3] = 1
+    # 연강/공강 선호: compact=수업을 붙여서(연강), spread=공강을 두고 분산, any=상관없음
+    gap_preference: Literal["any", "compact", "spread"] = "any"
 
 
 class CourseScheduleOut(BaseModel):
