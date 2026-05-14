@@ -33,6 +33,12 @@ def get_buildings(db: Session = Depends(get_db)):
     }
 
 
+@router.get("/schedules")
+def get_room_schedules(db: Session = Depends(get_db)):
+    """전체 강의실 주간 점유 스케줄 — 강의 DB 기반. 인증 없음 (빈 강의실 페이지용)."""
+    return {"success": True, "data": room_service.get_all_room_schedules(db)}
+
+
 @router.get("/walk-edges")
 def get_walk_edges(db: Session = Depends(get_db)):
     edges = room_service.get_walk_edges(db)
