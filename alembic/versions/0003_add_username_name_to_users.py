@@ -18,11 +18,11 @@ def upgrade() -> None:
     op.add_column("users", sa.Column("name", sa.String(100), nullable=True))
     op.create_index("ix_users_username", "users", ["username"], unique=True)
     # email is no longer required for new accounts
-    op.alter_column("users", "email", nullable=True)
+    op.alter_column("users", "email", existing_type=sa.String(255), nullable=True)
 
 
 def downgrade() -> None:
-    op.alter_column("users", "email", nullable=False)
+    op.alter_column("users", "email", existing_type=sa.String(255), nullable=False)
     op.drop_index("ix_users_username", table_name="users")
     op.drop_column("users", "name")
     op.drop_column("users", "username")
