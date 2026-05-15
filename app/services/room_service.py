@@ -41,12 +41,12 @@ def get_all_room_schedules(db: Session):
     for b in buildings:
         room_list = []
         for room in rooms_by_building.get(b.building_id, []):
-            weekly = {d: [0] * 9 for d in DAYS}
+            weekly = {d: [0] * 10 for d in DAYS}
             for s in sched_by_room.get(room.room_id, []):
                 if s.day not in weekly:
                     continue
                 for p in range(s.start_period, s.end_period + 1):
-                    if 1 <= p <= 9:
+                    if 1 <= p <= 10:
                         weekly[s.day][p - 1] = 1
             room_list.append({
                 "room_id": room.room_id,
@@ -88,7 +88,7 @@ def get_room_availability(
     room_results = []
     for room in rooms:
         period_statuses = []
-        for p in range(1, 10):
+        for p in range(1, 11):
             occupied = db.query(CourseSchedule).filter(
                 CourseSchedule.room_id == room.room_id,
                 CourseSchedule.day == queried_day,
