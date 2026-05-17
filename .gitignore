@@ -11,9 +11,8 @@ build/
 .mypy_cache/
 *.db
 
-# vibeserver-install.sh 런타임 산출물 (pid / log / 현재 URL)
+# vibeserver-install.sh 런타임 산출물 (pid / log)
 logs/
-server-url.txt
 
 # 수원대 강의 CSV 원본 (대용량, 학기마다 갱신)
 data/*.csv
