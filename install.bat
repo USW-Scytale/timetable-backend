@@ -141,6 +141,15 @@ if errorlevel 1 (
     exit /b 1
 )
 
+:: (c) 균형교양 영역(balance_area) 채우기 — suwon_electives.json 있을 때만
+if exist suwon_electives.json (
+    echo   (c) balance_area 적재 중...
+    python -m seed.seed_balance_areas suwon_electives.json
+    if errorlevel 1 (
+        echo   [경고] seed_balance_areas 실패 — 추천 우선순위가 영역 정보 없이 동작합니다
+    )
+)
+
 echo.
 echo ========================================
 echo   설치 완료!

@@ -124,6 +124,13 @@ if [ $? -ne 0 ]; then
     exit 1
 fi
 
+# (c) 균형교양 영역(balance_area) 채우기 — suwon_electives.json 있을 때만
+if [ -f suwon_electives.json ]; then
+    echo "  (c) balance_area 적재 중..."
+    python3 -m seed.seed_balance_areas suwon_electives.json || \
+        echo "  [경고] seed_balance_areas 실패 — 추천 우선순위가 영역 정보 없이 동작합니다"
+fi
+
 echo ""
 echo "========================================"
 echo "  설치 완료!"
