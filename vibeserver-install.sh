@@ -146,11 +146,21 @@ COURSES_COUNT="$(
 if [ "$RESET" -eq 1 ]; then
     echo "[5/8] --reset: seed --reset 강제 실행"
     python3 -m seed.seed --reset
+    SEEDED=1
 elif [ "${COURSES_COUNT:-0}" -gt 0 ]; then
     echo "[5/8] courses 테이블 이미 적재됨 ($COURSES_COUNT 행) → 시드 건너뜀"
+    SEEDED=0
 else
     echo "[5/8] courses 비어있음 → seed 실행"
     python3 -m seed.seed
+    SEEDED=1
+fi
+
+# 균형교양 영역(balance_area) 채우기 — seed 직후 또는 --reset 시에만
+if [ "$SEEDED" -eq 1 ] && [ -f suwon_electives.json ]; then
+    echo "       balance_area 적재 (suwon_electives.json)"
+    python3 -m seed.seed_balance_areas suwon_electives.json || \
+        echo "       [경고] seed_balance_areas 실패 — 추천 우선순위가 영역 정보 없이 동작합니다"
 fi
 
 # ---------- 6. 기존 프로세스 종료 ----------
