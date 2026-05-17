@@ -314,11 +314,18 @@ def create_recommendation(student: Student, req: RecommendRequest, db: Session) 
         .all()
     )
 
+    # 클라이언트 체크리스트에서 이수 표시한 과목도 제외
+    client_completed_codes = set(req.completed_subject_codes or [])
+    client_completed_names = {n.strip() for n in (req.completed_course_names or []) if n and n.strip()}
+    excluded_codes = history_subjects | client_completed_codes
+
     available = []
     for c in all_courses:
         if not c.schedules:
             continue
-        if c.subject_code in history_subjects:
+        if c.subject_code in excluded_codes:
+            continue
+        if client_completed_names and c.name and c.name.strip() in client_completed_names:
             continue
         if c.target_grade is not None and c.target_grade > student.grade:
             continue

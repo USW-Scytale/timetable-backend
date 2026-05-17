@@ -1,10 +1,11 @@
 from typing import Optional
 
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 
 from app.core.auth import get_current_user
 from app.database import get_db
+from app.models.course import Course
 from app.models.review import Review
 from app.models.user import User
 from app.schemas.review import ReviewCreate, ReviewOut
@@ -53,9 +54,30 @@ def create_review(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
+    course_name = req.course.strip()
+    professor_name = req.professor.strip()
+
+    # DB에 실제로 존재하는 강의(과목명+교수명)인지 검증
+    course_exists = db.query(Course).filter(
+        Course.name == course_name,
+        Course.professor == professor_name,
+    ).first()
+    if not course_exists:
+        # 과목명만 맞고 교수가 다른 경우 — 가능한 교수 후보를 함께 알려줌
+        same_name = db.query(Course.professor).filter(Course.name == course_name).distinct().all()
+        if same_name:
+            profs = ", ".join(p[0] for p in same_name[:5])
+            msg = f"'{course_name}' 강의는 있지만 '{professor_name}' 교수님 데이터가 없습니다. (해당 강의 교수: {profs})"
+        else:
+            msg = f"DB에 등록되지 않은 강의입니다. 강의명을 정확히 입력해주세요. (입력: '{course_name}')"
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail={"code": "COURSE_NOT_FOUND", "message": msg},
+        )
+
     review = Review(
-        course=req.course.strip(),
-        professor=req.professor.strip(),
+        course=course_name,
+        professor=professor_name,
         stars=req.stars,
         content=req.content.strip(),
         author=current_user.name or "익명",
