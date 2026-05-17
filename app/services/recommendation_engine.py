@@ -1,4 +1,5 @@
 import random
+import re
 from datetime import datetime
 from typing import Optional
 
@@ -22,6 +23,50 @@ SEMESTER = "2026-1"
 
 WEEKDAYS = ["mon", "tue", "wed", "thu", "fri", "sat"]
 
+# 전공 계열 course_type — 학과 필터 대상 (교양은 전체 공유)
+MAJOR_TYPES = {"major_required", "major_elective", "major_basic"}
+# 학과 매칭 시 떼어내는 접미사
+_DEPT_SUFFIXES = ("전공", "학부", "학과", "대학", "과")
+
+
+def _normalize_dept(name: Optional[str]) -> str:
+    """학과/전공명 정규화 — 공백 제거 + 접미사(전공/학부/학과/대학/과) 반복 제거 + 소문자."""
+    if not name:
+        return ""
+    s = re.sub(r"\s+", "", str(name))
+    changed = True
+    while changed:
+        changed = False
+        for suf in _DEPT_SUFFIXES:
+            if s.endswith(suf) and len(s) > len(suf):
+                s = s[: -len(suf)]
+                changed = True
+    return s.lower()
+
+
+def _student_dept_keys(student: Student) -> set[str]:
+    """학생의 학과·전공을 정규화한 키 집합."""
+    keys = set()
+    for v in (getattr(student, "department", None), getattr(student, "major", None)):
+        n = _normalize_dept(v)
+        if len(n) >= 2:
+            keys.add(n)
+    return keys
+
+
+def _course_dept_matches(course: Course, dept_keys: set[str]) -> bool:
+    """전공 과목이 학생 학과에 속하는지 — belong_dept / offering_dept 기준 퍼지 매칭."""
+    if not dept_keys:
+        return True  # 학과 정보가 없으면 필터하지 않음
+    for field in (course.belong_dept, course.offering_dept):
+        n = _normalize_dept(field)
+        if len(n) < 2:
+            continue
+        for k in dept_keys:
+            if n == k or n in k or k in n:
+                return True
+    return False
+
 
 def _make_rec_id() -> str:
     return f"REC-{datetime.utcnow().strftime('%Y%m%d')}-{random.randint(100, 999)}"
@@ -41,6 +86,21 @@ def _get_slots(schedules) -> set:
 
 def _has_conflict(slots: set, candidate_slots: set) -> bool:
     return bool(slots & candidate_slots)
+
+
+def _gap_score(candidate_slots: set, occupied: set, preference: str) -> int:
+    """연강/공강 선호 점수.
+    compact(연강): 기존 수업과 같은 요일에서 바로 앞/뒤 교시면 가산 → 수업이 붙음.
+    spread(공강): 붙는 걸 감점 → 수업이 흩어져 공강이 생김.
+    any: 항상 0 → 기존 동작(첫 유효 후보 선택)과 동일.
+    """
+    if preference == "any" or not occupied:
+        return 0
+    adjacency = 0
+    for (day, p) in candidate_slots:
+        if (day, p - 1) in occupied or (day, p + 1) in occupied:
+            adjacency += 1
+    return adjacency if preference == "compact" else -adjacency
 
 
 def _violates_free_days(candidate_slots: set, free_days: list) -> bool:
@@ -118,9 +178,23 @@ def _build_plan(
     free_days = req.free_days or []
 
     # 그룹 단위로 후보를 만듦: 같은 과목코드(다른 분반) 중 1개만 선택
-    group_keys = list(required_groups.keys()) + list(elective_groups.keys())
+    all_groups = {**elective_groups, **required_groups}
     rng = random.Random(variation * 42)
+
+    # course_type 우선순위 — 전공필수 → 전공교양 → 전공선택 → 핵심교양 → 균형교양 → 자유선택
+    _TYPE_PRIORITY = {
+        "major_required": 0, "major_basic": 1, "major_elective": 2,
+        "core_general": 3, "balance_general": 4, "free_general": 5,
+    }
+
+    def _group_priority(key: str) -> int:
+        courses = all_groups.get(key) or []
+        return min((_TYPE_PRIORITY.get(c.course_type, 9) for c in courses), default=9)
+
+    # tier 안에서는 셔플(플랜별 다양성), tier 순서는 우선순위 고정 — 전공이 먼저 채워짐
+    group_keys = list(all_groups.keys())
     rng.shuffle(group_keys)
+    group_keys.sort(key=_group_priority)
 
     selected: list[Course] = []
     selected_subjects: set[str] = set()
@@ -133,11 +207,16 @@ def _build_plan(
         if key in selected_subjects:
             continue
 
-        candidates = required_groups.get(key) or elective_groups.get(key) or []
+        candidates = all_groups.get(key) or []
         # 분반 후보들을 셔플하여 다양성 확보
         shuffled = list(candidates)
         rng.shuffle(shuffled)
 
+        # 유효한 후보 중 연강/공강 선호 점수가 가장 높은 분반 선택
+        # (gap_preference="any"면 점수가 모두 0 → 셔플 순서상 첫 후보가 선택됨)
+        best_course = None
+        best_slots = None
+        best_score = None
         for course in shuffled:
             if not course.schedules:
                 continue
@@ -150,11 +229,17 @@ def _build_plan(
                 continue
             if not _passes_time_preference(course.schedules, req.time_preference, req.start_hour):
                 continue
-            selected.append(course)
-            selected_subjects.add(course.subject_code)
-            occupied.update(course_slots)
-            total_credits += course.credits
-            break
+            score = _gap_score(course_slots, occupied, req.gap_preference)
+            if best_score is None or score > best_score:
+                best_score = score
+                best_course = course
+                best_slots = course_slots
+
+        if best_course is not None:
+            selected.append(best_course)
+            selected_subjects.add(best_course.subject_code)
+            occupied.update(best_slots)
+            total_credits += best_course.credits
 
     if total_credits < req.target_credits - 4:
         return None
@@ -201,6 +286,10 @@ def _generate_reason(selected: list[Course], actual_free_days: list, req: Recomm
         parts.append("오전 집중형")
     elif req.time_preference == "afternoon":
         parts.append("오후 집중형")
+    if req.gap_preference == "compact":
+        parts.append("연강 위주")
+    elif req.gap_preference == "spread":
+        parts.append("공강 여유")
     parts.append(f"필수 {required_cnt}과목 + 선택 {elective_cnt}과목 구성")
     return ", ".join(parts)
 
@@ -234,6 +323,16 @@ def create_recommendation(student: Student, req: RecommendRequest, db: Session) 
         if c.target_grade is not None and c.target_grade > student.grade:
             continue
         available.append(c)
+
+    # ── 학과 필터: 전공 과목은 학생 학과 소속만, 교양은 전체 공유 ──
+    dept_keys = _student_dept_keys(student)
+    major_all = [c for c in available if c.course_type in MAJOR_TYPES]
+    general = [c for c in available if c.course_type not in MAJOR_TYPES]
+    major_filtered = [c for c in major_all if _course_dept_matches(c, dept_keys)]
+    # 필터 결과가 너무 적으면(학과 데이터 누락 가능) 전체 전공으로 폴백
+    distinct_subjects = len({c.subject_code for c in major_filtered})
+    major = major_filtered if distinct_subjects >= 5 else major_all
+    available = major + general
 
     required = [c for c in available if c.course_type in REQUIRED_TYPES]
     elective = [c for c in available if c.course_type in ELECTIVE_TYPES]
@@ -404,6 +503,23 @@ def get_saved_timetables(student: Student, semester: Optional[str], db: Session)
             "saved_at": saved.saved_at,
         })
     return result
+
+
+def delete_saved_timetable(student: Student, timetable_id: str, db: Session) -> dict:
+    from fastapi import HTTPException, status as http_status
+
+    saved = db.query(SavedTimetable).filter(
+        SavedTimetable.timetable_id == timetable_id,
+        SavedTimetable.student_id == student.id,
+    ).first()
+    if not saved:
+        raise HTTPException(
+            status_code=http_status.HTTP_404_NOT_FOUND,
+            detail={"code": "NOT_FOUND", "message": "저장된 시간표를 찾을 수 없습니다."},
+        )
+    db.delete(saved)
+    db.commit()
+    return {"timetable_id": timetable_id}
 
 
 def _serialize_recommendation(rec: TimetableRecommendation, plans_data: list) -> dict:

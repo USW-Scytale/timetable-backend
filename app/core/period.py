@@ -1,21 +1,18 @@
 from datetime import datetime, time
 
+# 수원대 실제 수업시간표 — 1~8교시 50분 슬롯(:30~:20), 9·10교시 야간 45분(:25~:10 / :15~:00)
+# 쉬는 시간 사이사이 5~10분
 PERIOD_SCHEDULE = {
-    1: (time(9, 0), time(9, 50)),
-    2: (time(10, 0), time(10, 50)),
-    3: (time(11, 0), time(11, 50)),
-    4: (time(12, 0), time(12, 50)),
-    5: (time(13, 0), time(13, 50)),
-    6: (time(14, 0), time(14, 50)),
-    7: (time(15, 0), time(15, 50)),
-    8: (time(16, 0), time(16, 50)),
-    9: (time(17, 0), time(17, 50)),
-    10: (time(18, 0), time(18, 50)),
-    11: (time(19, 0), time(19, 50)),
-    12: (time(20, 0), time(20, 50)),
-    13: (time(21, 0), time(21, 50)),
-    14: (time(22, 0), time(22, 50)),
-    15: (time(23, 0), time(23, 50)),
+    1:  (time(9, 30),  time(10, 20)),
+    2:  (time(10, 30), time(11, 20)),
+    3:  (time(11, 30), time(12, 20)),
+    4:  (time(12, 30), time(13, 20)),
+    5:  (time(13, 30), time(14, 20)),
+    6:  (time(14, 30), time(15, 20)),
+    7:  (time(15, 30), time(16, 20)),
+    8:  (time(16, 30), time(17, 20)),
+    9:  (time(17, 25), time(18, 10)),
+    10: (time(18, 15), time(19, 0)),
 }
 
 PERIOD_START_TIME = {p: f"{s.strftime('%H:%M')}" for p, (s, _) in PERIOD_SCHEDULE.items()}
