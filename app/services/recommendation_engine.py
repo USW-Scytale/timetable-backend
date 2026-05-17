@@ -156,6 +156,8 @@ def _course_to_dict(course: Course) -> dict:
         "type_label": course_type_label(course.course_type),
         "schedule": schedule,
         "room": primary_room,
+        "balance_area": course.balance_area,
+        "balance_area_num": course.balance_area_num,
     }
 
 
@@ -186,10 +188,23 @@ def _build_plan(
         "major_required": 0, "major_basic": 1, "major_elective": 2,
         "core_general": 3, "balance_general": 4, "free_general": 5,
     }
+    _unmet_areas = set(req.unmet_balance_areas or [])
 
-    def _group_priority(key: str) -> int:
+    def _group_priority(key: str) -> tuple:
+        """tier 정렬용 우선순위. 작을수록 먼저.
+        반환값은 (type_pri, area_bonus) 튜플 — Python 튜플 비교로 자연 정렬됨.
+        균형교양 그룹 중 학생이 아직 미이수인 영역의 과목이면 area_bonus=-1로 상위 boost.
+        """
         courses = all_groups.get(key) or []
-        return min((_TYPE_PRIORITY.get(c.course_type, 9) for c in courses), default=9)
+        type_pri = min((_TYPE_PRIORITY.get(c.course_type, 9) for c in courses), default=9)
+        area_bonus = 0
+        if type_pri == _TYPE_PRIORITY["balance_general"] and _unmet_areas:
+            for c in courses:
+                an = getattr(c, "balance_area_num", None)
+                if an and an in _unmet_areas:
+                    area_bonus = -1   # 같은 tier 내에서 위로 올림
+                    break
+        return (type_pri, area_bonus)
 
     # tier 안에서는 셔플(플랜별 다양성), tier 순서는 우선순위 고정 — 전공이 먼저 채워짐
     group_keys = list(all_groups.keys())
