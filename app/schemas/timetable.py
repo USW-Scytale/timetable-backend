@@ -13,6 +13,9 @@ class RecommendRequest(BaseModel):
     plan_count: Literal[1, 3] = 1
     # 연강/공강 선호: compact=수업을 붙여서(연강), spread=공강을 두고 분산, any=상관없음
     gap_preference: Literal["any", "compact", "spread"] = "any"
+    # 클라이언트(졸업요건 필수과목 체크리스트)에서 직접 이수 표시한 과목 — 추천에서 제외
+    completed_subject_codes: Optional[List[str]] = None
+    completed_course_names: Optional[List[str]] = None
 
 
 class CourseScheduleOut(BaseModel):
