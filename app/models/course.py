@@ -36,6 +36,8 @@ class Course(Base):
     semester = Column(String(10), nullable=True)
     max_enrollment = Column(Integer, default=60)
     grade_limits = Column(JSON, nullable=True)
+    balance_area = Column(String(50), nullable=True)
+    balance_area_num = Column(SmallInteger, nullable=True)
 
     schedules = relationship("CourseSchedule", back_populates="course", cascade="all, delete-orphan")
     history = relationship("CourseHistory", back_populates="course")
