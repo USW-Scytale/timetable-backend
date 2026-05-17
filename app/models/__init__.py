@@ -6,6 +6,7 @@ from app.models.course import Course, CourseSchedule, Prerequisite, CourseHistor
 from app.models.room import Building, Room
 from app.models.timetable import TimetableRecommendation, RecommendationPlan, PlanCourse, SavedTimetable
 from app.models.graduation import GraduationRequirement, RequiredCourse
+from app.models.review import Review
 
 __all__ = [
     "Base",
@@ -15,4 +16,5 @@ __all__ = [
     "Building", "Room",
     "TimetableRecommendation", "RecommendationPlan", "PlanCourse", "SavedTimetable",
     "GraduationRequirement", "RequiredCourse",
+    "Review",
 ]

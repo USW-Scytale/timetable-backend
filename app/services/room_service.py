@@ -15,6 +15,56 @@ def get_walk_edges(db: Session):
     return db.query(WalkEdge).all()
 
 
+def get_all_room_schedules(db: Session):
+    """전체 건물·강의실의 주간(월~금) 점유 스케줄을 한 번에 반환.
+    강의 DB(CourseSchedule)를 그대로 반영 — 프론트 빈 강의실 페이지용.
+    weekly[day] = 1~9교시 점유 배열 (0=빈강의실, 1=수업중)."""
+    DAYS = ("mon", "tue", "wed", "thu", "fri")
+
+    buildings = db.query(Building).all()
+    rooms = db.query(Room).all()
+    schedules = (
+        db.query(CourseSchedule)
+        .filter(CourseSchedule.room_id.isnot(None))
+        .all()
+    )
+
+    # room_id 별로 스케줄 그룹핑 (쿼리 3번으로 끝)
+    sched_by_room: dict[str, list] = {}
+    for s in schedules:
+        sched_by_room.setdefault(s.room_id, []).append(s)
+    rooms_by_building: dict[str, list] = {}
+    for room in rooms:
+        rooms_by_building.setdefault(room.building_id, []).append(room)
+
+    result = []
+    for b in buildings:
+        room_list = []
+        for room in rooms_by_building.get(b.building_id, []):
+            weekly = {d: [0] * 10 for d in DAYS}
+            for s in sched_by_room.get(room.room_id, []):
+                if s.day not in weekly:
+                    continue
+                for p in range(s.start_period, s.end_period + 1):
+                    if 1 <= p <= 10:
+                        weekly[s.day][p - 1] = 1
+            room_list.append({
+                "room_id": room.room_id,
+                "name": room.name,
+                "capacity": room.capacity,
+                "tags": room.tags or [],
+                "weekly": weekly,
+            })
+        result.append({
+            "building_id": b.building_id,
+            "building_name": b.name,
+            "icon": b.icon,
+            "total_rooms": len(room_list),
+            "rooms": room_list,
+        })
+    return result
+
+
 def get_room_availability(
     db: Session,
     building_id: Optional[str],
@@ -38,7 +88,7 @@ def get_room_availability(
     room_results = []
     for room in rooms:
         period_statuses = []
-        for p in range(1, 10):
+        for p in range(1, 11):
             occupied = db.query(CourseSchedule).filter(
                 CourseSchedule.room_id == room.room_id,
                 CourseSchedule.day == queried_day,

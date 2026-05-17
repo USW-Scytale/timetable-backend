@@ -5,14 +5,21 @@ from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.core.exceptions import validation_exception_handler, http_exception_handler
-from app.database import engine
+from app.database import engine, SessionLocal
 from app.models import Base
-from app.routers import auth, departments, students, timetables, rooms, graduation, courses
+from app.routers import auth, departments, students, timetables, rooms, graduation, courses, reviews
+from app.routers.reviews import seed_reviews
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     Base.metadata.create_all(bind=engine)
+    # 강의평 테이블이 비어 있으면 기본 데이터 시드
+    db = SessionLocal()
+    try:
+        seed_reviews(db)
+    finally:
+        db.close()
     yield
 
 
@@ -42,6 +49,7 @@ app.include_router(timetables.router)
 app.include_router(rooms.router)
 app.include_router(graduation.router)
 app.include_router(courses.router)
+app.include_router(reviews.router)
 
 
 @app.get("/health")
