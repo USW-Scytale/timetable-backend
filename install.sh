@@ -1,8 +1,8 @@
 #!/bin/bash
 #
 # 사용법:
-#   ./install.sh           # 기본 설치 (이미 있는 venv / .env / DB 볼륨 / course_pool.json 은 보존)
-#   ./install.sh --reset   # venv / .env / DB 볼륨 / course_pool.json 전부 삭제 후 재설치
+#   ./install.sh           # 기본 설치 (이미 있는 venv / .env / DB 볼륨 보존)
+#   ./install.sh --reset   # venv / .env / DB 볼륨 전부 삭제 후 재설치
 
 # ---------- 인자 파싱 ----------
 RESET=0
@@ -105,7 +105,7 @@ until docker compose exec db mysql -u app -papp_password -e "SELECT 1;" suwon_ti
 done
 echo "MySQL 준비 완료!"
 
-# [5/5] DB 초기화 (스키마 마이그레이션 + JSON 시드)
+# [5/5] DB 초기화 (스키마 마이그레이션 + 시드)
 echo "[5/5] DB 초기화 중..."
 
 # (a) 스키마 마이그레이션
@@ -116,24 +116,8 @@ if [ $? -ne 0 ]; then
     exit 1
 fi
 
-# (b) JSON 데이터 추출 (course_pool.json 이 없을 때만)
-if [ "$RESET" -eq 1 ] && [ -f seed/data/course_pool.json ]; then
-    echo "  --reset: 기존 course_pool.json 삭제"
-    rm -f seed/data/course_pool.json
-fi
-if [ ! -f seed/data/course_pool.json ]; then
-    echo "  (b) HTML 목업에서 JSON 데이터 추출 중..."
-    python3 -m seed._extract_html_mock
-    if [ $? -ne 0 ]; then
-        echo "[오류] JSON 데이터 추출 실패"
-        exit 1
-    fi
-else
-    echo "  (b) seed/data/course_pool.json 이미 존재합니다. 추출 건너뜁니다."
-fi
-
-# (c) DB 시드
-echo "  (c) DB 시드 적재 중..."
+# (b) DB 시드 (seed/data/*.json 사용)
+echo "  (b) DB 시드 적재 중..."
 python3 -m seed.seed --reset
 if [ $? -ne 0 ]; then
     echo "[오류] DB 시드 실패"
