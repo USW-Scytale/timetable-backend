@@ -182,6 +182,12 @@ if [ -n "$TUNNEL_PIDS" ]; then
     sleep 1
 fi
 
+# url-watcher 도 정리 (재실행 시 중복 방지)
+if [ -f logs/url-watcher.pid ] && kill -0 "$(cat logs/url-watcher.pid)" 2>/dev/null; then
+    kill "$(cat logs/url-watcher.pid)" 2>/dev/null || true
+fi
+pgrep -f 'url-watcher\.sh' | xargs -r kill 2>/dev/null || true
+
 # ---------- 7. 백엔드 nohup 기동 ----------
 echo "[7/8] 백엔드 nohup 기동"
 nohup ./venv/bin/python app.py > logs/backend.log 2>&1 &
@@ -226,7 +232,16 @@ if [ "$NO_TUNNEL" -eq 0 ]; then
     echo ""
     if [ -z "$TUNNEL_URL" ]; then
         echo "[경고] 30초 안에 trycloudflare URL 을 받지 못함. logs/tunnel.log 를 확인하세요."
+    else
+        echo "$TUNNEL_URL" > server-url.txt
+        echo "       server-url.txt 갱신: $TUNNEL_URL"
     fi
+
+    # URL 변동 자동 추적 watcher 기동 (cloudflared 재기동 시 server-url.txt 자동 갱신)
+    nohup ./url-watcher.sh > /dev/null 2>&1 &
+    WATCHER_PID=$!
+    echo "$WATCHER_PID" > logs/url-watcher.pid
+    echo "       url-watcher PID: $WATCHER_PID (logs/url-watcher.log)"
 else
     echo "[8/8] --no-tunnel: cloudflared 생략"
 fi
@@ -245,9 +260,13 @@ echo ""
 echo "  DB         : ${DB_NAME} @ ${DB_HOST}:${DB_PORT}"
 echo "  DB 사용자  : ${DB_USER}  (비번은 .env 의 DATABASE_URL 참조)"
 echo ""
+if [ -n "$TUNNEL_URL" ]; then
+    echo "  현재 URL  : server-url.txt (watcher 가 자동 갱신)"
+fi
+echo ""
 echo "  종료:"
 if [ -n "$TUNNEL_URL" ]; then
-    echo "    kill \$(cat logs/backend.pid logs/tunnel.pid)"
+    echo "    kill \$(cat logs/backend.pid logs/tunnel.pid logs/url-watcher.pid)"
 else
     echo "    kill \$(cat logs/backend.pid)"
 fi
