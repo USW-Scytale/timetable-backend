@@ -51,7 +51,7 @@ if errorlevel 1 (
 
 :: 가상환경 생성
 echo.
-echo [1/6] 가상환경 생성 중...
+echo [1/5] 가상환경 생성 중...
 if "%RESET%"=="1" if exist venv (
     echo   --reset: 기존 venv 삭제
     rmdir /s /q venv
@@ -64,7 +64,7 @@ if errorlevel 1 (
 )
 
 :: 패키지 설치
-echo [2/6] 패키지 설치 중...
+echo [2/5] 패키지 설치 중...
 call venv\Scripts\activate.bat
 python -m pip install --upgrade pip -q
 pip install --prefer-binary -r requirements.txt -q
@@ -75,7 +75,7 @@ if errorlevel 1 (
 )
 
 :: .env 파일 생성
-echo [3/6] 환경 파일 생성 중...
+echo [3/5] 환경 파일 생성 중...
 if "%RESET%"=="1" if exist .env (
     echo   --reset: 기존 .env 삭제
     del /q .env
@@ -91,7 +91,7 @@ if not exist .env (
 )
 
 :: MySQL 컨테이너 시작
-echo [4/6] MySQL DB 시작 중...
+echo [4/5] MySQL DB 시작 중...
 if "%RESET%"=="1" (
     echo   --reset: 기존 DB 컨테이너 및 볼륨 제거
     docker compose down -v
@@ -120,26 +120,25 @@ goto wait_loop
 :db_ready
 echo MySQL 준비 완료!
 
-:: DB 초기 데이터 적재 (스키마 + 기본 데이터)
-echo [5/6] DB 초기 데이터 적재 중 (seed\Dump20260513.sql)...
-docker compose exec -T db mysql -u app -papp_password suwon_timetable < seed\Dump20260513.sql
+:: DB 초기화 (스키마 마이그레이션 + 시드)
+echo [5/5] DB 초기화 중...
+
+:: (a) 스키마 마이그레이션
+echo   (a) alembic upgrade head...
+alembic upgrade head
 if errorlevel 1 (
-    echo [오류] DB 덤프 적재 실패
+    echo [오류] alembic 마이그레이션 실패
     pause
     exit /b 1
 )
 
-:: DB 마이그레이션 적용 (덤프 이후 추가 스키마)
-echo [6/6] DB 마이그레이션 및 목업 데이터 적재 중...
-alembic stamp 0001_baseline 2>nul
-alembic upgrade head
+:: (b) DB 시드 (seed\data\*.json 사용)
+echo   (b) DB 시드 적재 중...
+python -m seed.seed --reset
 if errorlevel 1 (
-    echo [경고] 마이그레이션 실패 - 계속 진행합니다.
-)
-
-python -m seed.load_html_mock
-if errorlevel 1 (
-    echo [경고] 목업 데이터 적재 실패 - 계속 진행합니다.
+    echo [오류] DB 시드 실패
+    pause
+    exit /b 1
 )
 
 echo.
