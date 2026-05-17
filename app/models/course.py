@@ -36,8 +36,9 @@ class Course(Base):
     semester = Column(String(10), nullable=True)
     max_enrollment = Column(Integer, default=60)
     grade_limits = Column(JSON, nullable=True)
-    balance_area = Column(String(50), nullable=True)
-    balance_area_num = Column(SmallInteger, nullable=True)
+    # 균형교양(선교) 영역 분류 — 신과정 1~6영역 + 영역명
+    balance_area = Column(String(50), nullable=True, index=True)        # 예: '사회와 문화'
+    balance_area_num = Column(SmallInteger, nullable=True, index=True)  # 1~6 (구과정은 null)
 
     schedules = relationship("CourseSchedule", back_populates="course", cascade="all, delete-orphan")
     history = relationship("CourseHistory", back_populates="course")
