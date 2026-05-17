@@ -1,6 +1,29 @@
 #!/bin/bash
+#
+# 사용법:
+#   ./install.sh           # 기본 설치 (이미 있는 venv / .env / DB 볼륨 / course_pool.json 은 보존)
+#   ./install.sh --reset   # venv / .env / DB 볼륨 / course_pool.json 전부 삭제 후 재설치
+
+# ---------- 인자 파싱 ----------
+RESET=0
+for arg in "$@"; do
+    case "$arg" in
+        --reset) RESET=1 ;;
+        -h|--help)
+            sed -n '2,5p' "$0"
+            exit 0
+            ;;
+        *)
+            echo "[오류] 알 수 없는 인자: $arg"
+            echo "       사용: $0 [--reset]"
+            exit 1
+            ;;
+    esac
+done
+
 echo "========================================"
 echo "  수원대 스마트 시간표 - 초기 설치"
+[ "$RESET" -eq 1 ] && echo "  모드: --reset (전체 재설치)"
 echo "========================================"
 
 # Python 확인
@@ -21,6 +44,10 @@ fi
 # [1/5] 가상환경 생성
 echo ""
 echo "[1/5] 가상환경 생성 중..."
+if [ "$RESET" -eq 1 ] && [ -d venv ]; then
+    echo "  --reset: 기존 venv 삭제"
+    rm -rf venv
+fi
 python3 -m venv venv
 if [ $? -ne 0 ]; then
     echo "[오류] 가상환경 생성 실패"
@@ -39,6 +66,10 @@ fi
 
 # [3/5] .env 파일 생성
 echo "[3/5] 환경 파일 생성 중..."
+if [ "$RESET" -eq 1 ] && [ -f .env ]; then
+    echo "  --reset: 기존 .env 삭제"
+    rm -f .env
+fi
 if [ ! -f .env ]; then
     cat > .env << 'EOF'
 DATABASE_URL=mysql+pymysql://app:app_password@localhost:3306/suwon_timetable
@@ -51,6 +82,10 @@ fi
 
 # [4/5] MySQL 컨테이너 시작
 echo "[4/5] MySQL DB 시작 중..."
+if [ "$RESET" -eq 1 ]; then
+    echo "  --reset: 기존 DB 컨테이너 및 볼륨 제거"
+    docker compose down -v
+fi
 docker compose up -d db
 if [ $? -ne 0 ]; then
     echo "[오류] MySQL 컨테이너 시작 실패"
@@ -82,6 +117,10 @@ if [ $? -ne 0 ]; then
 fi
 
 # (b) JSON 데이터 추출 (course_pool.json 이 없을 때만)
+if [ "$RESET" -eq 1 ] && [ -f seed/data/course_pool.json ]; then
+    echo "  --reset: 기존 course_pool.json 삭제"
+    rm -f seed/data/course_pool.json
+fi
 if [ ! -f seed/data/course_pool.json ]; then
     echo "  (b) HTML 목업에서 JSON 데이터 추출 중..."
     python3 -m seed._extract_html_mock
