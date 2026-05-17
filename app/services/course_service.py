@@ -73,6 +73,8 @@ def search_courses(
             "schedule": schedule,
             "grade_limits": c.grade_limits,
             "max_enrollment": c.max_enrollment or 0,
+            "balance_area": c.balance_area,           # 예: '사회와 문화'
+            "balance_area_num": c.balance_area_num,   # 1~6 (구과정은 null)
         })
 
     return {"total": total, "page": page, "size": size, "items": items}

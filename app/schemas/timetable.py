@@ -16,6 +16,8 @@ class RecommendRequest(BaseModel):
     # 클라이언트(졸업요건 필수과목 체크리스트)에서 직접 이수 표시한 과목 — 추천에서 제외
     completed_subject_codes: Optional[List[str]] = None
     completed_course_names: Optional[List[str]] = None
+    # 미이수 균형교양 영역(1~6) — 해당 영역 과목을 다른 균형교양보다 먼저 추천
+    unmet_balance_areas: Optional[List[int]] = None
 
 
 class CourseScheduleOut(BaseModel):
