@@ -1,7 +1,34 @@
 @echo off
 chcp 65001 > nul
+
+:: 사용법:
+::   install.bat           기본 설치 (기존 venv / .env / DB 볼륨 보존)
+::   install.bat --reset   venv / .env / DB 볼륨 삭제 후 재설치
+
+:: ---------- 인자 파싱 ----------
+set RESET=0
+:parse_args
+if "%~1"=="" goto args_done
+if /i "%~1"=="--reset" (
+    set RESET=1
+    shift
+    goto parse_args
+)
+if /i "%~1"=="-h"     goto show_help
+if /i "%~1"=="--help" goto show_help
+echo [오류] 알 수 없는 인자: %~1
+echo        사용: install.bat [--reset]
+exit /b 1
+:show_help
+echo 사용법:
+echo   install.bat           기본 설치
+echo   install.bat --reset   venv / .env / DB 볼륨 삭제 후 재설치
+exit /b 0
+:args_done
+
 echo ========================================
 echo   수원대 스마트 시간표 - 초기 설치
+if "%RESET%"=="1" echo   모드: --reset (전체 재설치)
 echo ========================================
 
 :: Python 확인
@@ -25,6 +52,10 @@ if errorlevel 1 (
 :: 가상환경 생성
 echo.
 echo [1/6] 가상환경 생성 중...
+if "%RESET%"=="1" if exist venv (
+    echo   --reset: 기존 venv 삭제
+    rmdir /s /q venv
+)
 python -m venv venv
 if errorlevel 1 (
     echo [오류] 가상환경 생성 실패
@@ -45,6 +76,10 @@ if errorlevel 1 (
 
 :: .env 파일 생성
 echo [3/6] 환경 파일 생성 중...
+if "%RESET%"=="1" if exist .env (
+    echo   --reset: 기존 .env 삭제
+    del /q .env
+)
 if not exist .env (
     (
         echo DATABASE_URL=mysql+pymysql://app:app_password@localhost:3306/suwon_timetable
@@ -57,6 +92,10 @@ if not exist .env (
 
 :: MySQL 컨테이너 시작
 echo [4/6] MySQL DB 시작 중...
+if "%RESET%"=="1" (
+    echo   --reset: 기존 DB 컨테이너 및 볼륨 제거
+    docker compose down -v
+)
 docker compose up -d db
 if errorlevel 1 (
     echo [오류] MySQL 컨테이너 시작 실패
